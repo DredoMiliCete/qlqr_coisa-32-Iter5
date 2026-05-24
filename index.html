@@ -10,9 +10,8 @@
 </head>
 <body>
 
-<!-- WELCOME SCREEN -->
+<!-- WELCOME -->
 <div id="screen-welcome" class="screen active">
-  <div class="welcome-bg"></div>
   <div class="welcome-body">
     <div class="welcome-logo-wrap">
       <img src="logo.png" alt="Handy" class="welcome-logo-img"/>
@@ -35,7 +34,7 @@
   </div>
 </div>
 
-<!-- AUTH SCREEN -->
+<!-- AUTH -->
 <div id="screen-auth" class="screen">
   <div class="auth-top">
     <button class="btn-back-plain" onclick="showScreen('welcome')">&#8249; Voltar</button>
@@ -50,14 +49,8 @@
       <button class="auth-tab" data-tab="register">Registar</button>
     </div>
     <div class="auth-form" id="tab-login">
-      <div class="field-group">
-        <label>Email</label>
-        <input type="email" id="login-email" placeholder="o.teu@email.com"/>
-      </div>
-      <div class="field-group">
-        <label>Password</label>
-        <input type="password" id="login-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"/>
-      </div>
+      <div class="field-group"><label>Email</label><input type="email" id="login-email" placeholder="o.teu@email.com"/></div>
+      <div class="field-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"/></div>
       <p class="auth-error" id="login-error"></p>
       <button class="btn-blue-full" onclick="doLogin()">Entrar</button>
       <div class="divider"><span>ou</span></div>
@@ -67,18 +60,9 @@
       </button>
     </div>
     <div class="auth-form hidden" id="tab-register">
-      <div class="field-group">
-        <label>Nome completo</label>
-        <input type="text" id="reg-name" placeholder="Maria Tomas"/>
-      </div>
-      <div class="field-group">
-        <label>Email</label>
-        <input type="email" id="reg-email" placeholder="o.teu@email.com"/>
-      </div>
-      <div class="field-group">
-        <label>Password</label>
-        <input type="password" id="reg-password" placeholder="minimo 6 caracteres"/>
-      </div>
+      <div class="field-group"><label>Nome completo</label><input type="text" id="reg-name" placeholder="Maria Tomas"/></div>
+      <div class="field-group"><label>Email</label><input type="email" id="reg-email" placeholder="o.teu@email.com"/></div>
+      <div class="field-group"><label>Password</label><input type="password" id="reg-password" placeholder="minimo 6 caracteres"/></div>
       <p class="auth-error" id="reg-error"></p>
       <button class="btn-blue-full" onclick="doRegister()">Criar conta</button>
     </div>
@@ -87,14 +71,12 @@
 
 <!-- MAIN APP -->
 <div id="screen-app" class="screen">
-
-  <!-- Page: Pedido atual -->
+  <!-- Pedido -->
   <div id="page-pedido" class="page">
     <div class="page-header"><h1 class="page-title">Pedido atual</h1></div>
     <div id="active-request-area" class="page-scroll-body"></div>
   </div>
-
-  <!-- Page: Menu principal -->
+  <!-- Menu -->
   <div id="page-menu" class="page active">
     <div class="menu-header">
       <div class="menu-brand">
@@ -117,22 +99,18 @@
         <h2 class="categories-title">Categorias</h2>
         <div class="categories-scroll-wrap">
           <div class="categories-list" id="categories-list"></div>
-          <div class="categories-scrollbar-track">
-            <div class="categories-scrollbar-thumb" id="cat-scrollbar-thumb"></div>
-          </div>
+          <div class="categories-scrollbar-track"><div class="categories-scrollbar-thumb" id="cat-scrollbar-thumb"></div></div>
         </div>
       </div>
     </div>
   </div>
-
-  <!-- Page: Historico -->
+  <!-- Historico -->
   <div id="page-historico" class="page">
     <div class="page-header"><h1 class="page-title">Historico</h1></div>
     <div class="page-scroll-body" id="historico-list"></div>
     <div id="historico-empty" class="empty-state hidden"><p>Ainda nao tens pedidos.</p></div>
   </div>
-
-  <!-- Page: Definicoes -->
+  <!-- Definicoes -->
   <div id="page-def" class="page">
     <div class="page-header"><h1 class="page-title">Definicoes</h1></div>
     <div class="page-scroll-body">
@@ -144,20 +122,13 @@
         </div>
       </div>
       <div class="settings-group">
-        <div class="settings-row">
-          <span>Notificacoes</span>
-          <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
-        </div>
-        <div class="settings-row">
-          <span>Modo escuro</span>
-          <label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleDark(this)"/><span class="toggle-slider"></span></label>
-        </div>
+        <div class="settings-row"><span>Notificacoes</span><label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
+        <div class="settings-row"><span>Modo escuro</span><label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleDark(this)"/><span class="toggle-slider"></span></label></div>
       </div>
       <button class="btn-danger-full" onclick="clearAllData()">Limpar dados locais</button>
       <button class="btn-logout-full" onclick="doLogout()">Terminar sessao</button>
     </div>
   </div>
-
   <!-- Tab Bar -->
   <nav class="tab-bar">
     <button class="tab-btn" data-page="pedido" onclick="switchTab('pedido')">
@@ -179,28 +150,20 @@
   </nav>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FULL-SCREEN OVERLAY: Pedido Automatico
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ FULL-SCREEN: Pedido Automático ═══ -->
 <div id="fs-auto" class="fscreen hidden">
   <div class="fscreen-header">
     <button class="fscreen-back" onclick="closeFullScreen('fs-auto')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-      Voltar
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>Voltar
     </button>
-    <div class="fscreen-brand">
-      <img src="logo.png" class="fscreen-logo" alt=""/>
-      <span>handy</span>
-    </div>
+    <div class="fscreen-brand"><img src="logo.png" class="fscreen-logo" alt=""/><span>handy</span></div>
   </div>
-  <div class="fscreen-body" id="auto-modal-content">
+  <div class="fscreen-body">
+    <!-- Step: form -->
     <div id="auto-step-form">
       <h2 class="fscreen-title">Pedido Automatico</h2>
       <p class="sheet-sub">Preenche os detalhes e o sistema encontra o aluno ideal.</p>
-      <div class="field-group">
-        <label>Categoria <span class="req">*</span></label>
-        <div class="select-wrap"><select id="auto-category"></select></div>
-      </div>
+      <div class="field-group"><label>Categoria <span class="req">*</span></label><div class="select-wrap"><select id="auto-category"></select></div></div>
       <div class="field-group">
         <label>Urgencia <span class="req">*</span></label>
         <div class="urgency-row">
@@ -210,109 +173,112 @@
           <label class="urg-opt"><input type="radio" name="auto-urg" value="URGENTE"/><span class="urg-chip urg">Urgente</span></label>
         </div>
       </div>
-      <div class="field-group">
-        <label>Nivel de experiencia</label>
-        <div class="select-wrap">
-          <select id="auto-level">
-            <option value="BASICO">Basico</option>
-            <option value="INTERMEDIO" selected>Intermedio</option>
-            <option value="AVANCADO">Avancado</option>
-          </select>
-        </div>
-      </div>
-      <div class="field-group">
-        <label>Descricao <span class="req">*</span></label>
-        <textarea id="auto-desc" rows="3" placeholder="Descreve o que precisas..."></textarea>
-      </div>
-      <div class="field-group">
-        <label>Localizacao</label>
-        <input type="text" id="auto-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
-      </div>
+      <div class="field-group"><label>Nivel de experiencia</label><div class="select-wrap"><select id="auto-level"><option value="BASICO">Basico</option><option value="INTERMEDIO" selected>Intermedio</option><option value="AVANCADO">Avancado</option></select></div></div>
+      <div class="field-group"><label>Descricao <span class="req">*</span></label><textarea id="auto-desc" rows="3" placeholder="Descreve o que precisas..."></textarea></div>
+      <div class="field-group"><label>Localizacao</label><input type="text" id="auto-location" placeholder="Ex: Rua das Flores 42, Aveiro"/></div>
       <p class="form-error" id="auto-form-error"></p>
       <button class="btn-blue-full" onclick="submitAutoRequest()">Enviar pedido</button>
     </div>
+    <!-- Step: sending -->
     <div id="auto-step-sending" class="hidden">
-      <div class="sending-anim">
-        <div class="send-ring"></div>
-        <img src="logo.png" class="send-logo"/>
-      </div>
+      <div class="sending-anim"><div class="send-ring"></div><img src="logo.png" class="send-logo"/></div>
       <h2 class="fscreen-title" id="auto-send-title">A enviar propostas...</h2>
-      <p class="sheet-sub" id="auto-send-sub">O sistema esta a procurar os alunos mais adequados.</p>
+      <p class="sheet-sub" id="auto-send-sub"></p>
       <div class="log-box" id="auto-log"></div>
     </div>
+    <!-- Step: waiting -->
     <div id="auto-step-waiting" class="hidden">
-      <div class="waiting-icon">&#9203;</div>
+      <div class="waiting-icon">⏳</div>
       <h2 class="fscreen-title">Propostas enviadas!</h2>
-      <p class="sheet-sub">Os alunos selecionados foram notificados. Receberas uma notificacao quando algum aceitar.</p>
+      <p class="sheet-sub">Os alunos foram notificados. Receberás uma notificacao quando algum aceitar.</p>
       <div class="waiting-info-box" id="waiting-info"></div>
-      <button class="btn-ghost-full" onclick="closeFullScreen('fs-auto')" style="margin-top:1rem">Fechar e aguardar</button>
+      <button class="btn-simulate-accept" style="margin-top:1rem;width:100%;display:block;border-radius:var(--r-sm)" onclick="simulateAcceptance()">🎭 Simular resposta dos alunos</button>
+      <button class="btn-ghost-full" onclick="closeFullScreen('fs-auto')">Fechar e aguardar</button>
     </div>
+    <!-- Step: no candidates -->
+    <div id="auto-step-no-candidates" class="hidden">
+      <div class="waiting-icon">🔍</div>
+      <h2 class="fscreen-title">Nenhum aluno encontrado</h2>
+      <p class="sheet-sub">Não existem alunos disponíveis para a combinação de categoria e nível que escolheste. Tenta ajustar as especificações do pedido.</p>
+      <div class="info-box-warning">
+        <strong>Sugestões:</strong><br>
+        • Escolhe um nível de experiência inferior<br>
+        • Experimenta uma categoria diferente<br>
+        • Tenta a pesquisa manual para ver alunos disponíveis
+      </div>
+      <button class="btn-blue-full" onclick="showAutoStep('auto-step-form')">← Ajustar pedido</button>
+      <button class="btn-ghost-full" onclick="closeFullScreen('fs-auto');switchTab('menu')">Pesquisar manualmente</button>
+    </div>
+    <!-- Step: expired / no one accepted -->
+    <div id="auto-step-expired" class="hidden">
+      <div class="waiting-icon">😔</div>
+      <h2 class="fscreen-title">Ninguém aceitou</h2>
+      <p class="sheet-sub">O pedido foi cancelado porque nenhum aluno aceitou dentro do prazo.</p>
+      <div class="info-box-warning">
+        Podes tentar novamente com especificações diferentes, ou fazer uma pesquisa manual para escolheres diretamente um aluno.
+      </div>
+      <button class="btn-blue-full" onclick="showAutoStep('auto-step-form')">Tentar novamente</button>
+      <button class="btn-ghost-full" onclick="closeFullScreen('fs-auto');switchTab('menu')">Pesquisar manualmente</button>
+    </div>
+    <!-- Step: choose -->
     <div id="auto-step-choose" class="hidden">
-      <h2 class="fscreen-title">&#127881; Alunos disponiveis!</h2>
-      <p class="sheet-sub" id="auto-choose-sub">Os seguintes alunos aceitaram a tua proposta. Escolhe um:</p>
+      <h2 class="fscreen-title">🎉 Alunos disponíveis!</h2>
+      <p class="sheet-sub" id="auto-choose-sub"></p>
       <div class="students-list" id="auto-students-list"></div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FULL-SCREEN OVERLAY: Lista alunos (manual)
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ FULL-SCREEN: Lista alunos (manual) ═══ -->
 <div id="fs-manual" class="fscreen hidden">
   <div class="fscreen-header">
     <button class="fscreen-back" onclick="closeFullScreen('fs-manual')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-      Voltar
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>Voltar
     </button>
-    <div class="fscreen-brand">
-      <img src="logo.png" class="fscreen-logo" alt=""/>
-      <span>handy</span>
-    </div>
+    <div class="fscreen-brand"><img src="logo.png" class="fscreen-logo" alt=""/><span>handy</span></div>
   </div>
   <div class="fscreen-body">
-    <h2 class="fscreen-title" id="fs-manual-title">Alunos disponiveis</h2>
+    <h2 class="fscreen-title" id="fs-manual-title">Alunos disponíveis</h2>
     <p class="sheet-sub" id="fs-manual-sub"></p>
     <div class="students-list" id="fs-manual-students-list"></div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════
-     FULL-SCREEN OVERLAY: Perfil do aluno
-     ═══════════════════════════════════════════════════════════ -->
+<!-- ═══ FULL-SCREEN: Perfil do aluno ═══ -->
 <div id="fs-profile" class="fscreen hidden">
   <div class="fscreen-header">
     <button class="fscreen-back" onclick="closeFullScreen('fs-profile')">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
-      Voltar
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>Voltar
     </button>
-    <div class="fscreen-brand">
-      <img src="logo.png" class="fscreen-logo" alt=""/>
-      <span>handy</span>
-    </div>
+    <div class="fscreen-brand"><img src="logo.png" class="fscreen-logo" alt=""/><span>handy</span></div>
   </div>
   <div class="fscreen-body">
     <div id="fs-profile-content"></div>
   </div>
 </div>
 
-<!-- MODAL: Enviar proposta manual -->
-<div id="modal-send-proposal" class="modal hidden">
-  <div class="modal-backdrop" onclick="closeModal('modal-send-proposal')"></div>
-  <div class="modal-sheet">
-    <div class="sheet-handle"></div>
-    <h2 class="sheet-title">Enviar proposta</h2>
-    <p class="sheet-sub" id="proposal-to-name"></p>
-    <div class="field-group">
-      <label>Descricao breve <span class="req">*</span></label>
-      <textarea id="proposal-desc" rows="3" placeholder="Descreve o servico que precisas..."></textarea>
+<!-- ═══ FULL-SCREEN: Formulário de proposta ═══ -->
+<div id="fs-proposal" class="fscreen hidden">
+  <div class="fscreen-header">
+    <button class="fscreen-back" onclick="closeFullScreen('fs-proposal')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>Voltar
+    </button>
+    <div class="fscreen-brand"><img src="logo.png" class="fscreen-logo" alt=""/><span>handy</span></div>
+  </div>
+  <div class="fscreen-body">
+    <h2 class="fscreen-title" id="fs-proposal-title">Enviar proposta</h2>
+    <p class="sheet-sub" id="fs-proposal-sub"></p>
+    <div class="field-group" style="margin-top:1rem">
+      <label>Descrição do serviço <span class="req">*</span></label>
+      <textarea id="proposal-desc" rows="4" placeholder="Descreve detalhadamente o que precisas..."></textarea>
     </div>
     <div class="field-group">
-      <label>Localizacao</label>
+      <label>Localização</label>
       <input type="text" id="proposal-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
     </div>
     <p class="form-error" id="proposal-error"></p>
     <button class="btn-blue-full" onclick="sendManualProposal()">Enviar proposta</button>
-    <button class="btn-ghost-full" onclick="closeModal('modal-send-proposal')">Cancelar</button>
+    <button class="btn-ghost-full" onclick="closeFullScreen('fs-proposal')">Cancelar</button>
   </div>
 </div>
 
@@ -320,7 +286,7 @@
 <div id="modal-ok" class="modal hidden">
   <div class="modal-backdrop" onclick="closeModal('modal-ok')"></div>
   <div class="modal-sheet center-sheet">
-    <div class="ok-icon" id="ok-icon">&#127881;</div>
+    <div class="ok-icon" id="ok-icon">🎉</div>
     <h2 class="sheet-title" id="ok-title">Feito!</h2>
     <p class="sheet-sub" id="ok-body"></p>
     <button class="btn-blue-full" onclick="closeModal('modal-ok')">OK</button>
