@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Handy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+
+<!-- WELCOME SCREEN -->
+<div id="screen-welcome" class="screen active">
+  <div class="welcome-bg"></div>
+  <div class="welcome-body">
+    <div class="welcome-logo-wrap">
+      <img src="logo.png" alt="Handy" class="welcome-logo-img"/>
+      <span class="welcome-logo-text">handy</span>
+    </div>
+    <p class="welcome-tagline">Servicos domesticos realizados<br>por quem esta a aprender.</p>
+    <div class="welcome-roles">
+      <button class="role-card role-client" onclick="goToAuth()">
+        <span class="role-icon">&#128100;</span>
+        <span class="role-title">Sou Cliente</span>
+        <span class="role-sub">Preciso de um servico</span>
+      </button>
+      <button class="role-card role-student disabled" onclick="showToast('Em breve disponivel!')">
+        <span class="role-icon">&#127891;</span>
+        <span class="role-title">Sou Aluno</span>
+        <span class="role-sub">Quero prestar servicos</span>
+        <span class="role-soon">Em breve</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTH SCREEN -->
+<div id="screen-auth" class="screen">
+  <div class="auth-top">
+    <button class="btn-back-plain" onclick="showScreen('welcome')">&#8249; Voltar</button>
+    <div class="auth-logo-sm">
+      <img src="logo.png" alt="Handy" class="auth-logo-img"/>
+      <span>handy</span>
+    </div>
+  </div>
+  <div class="auth-body">
+    <div class="auth-tabs">
+      <button class="auth-tab active" data-tab="login">Entrar</button>
+      <button class="auth-tab" data-tab="register">Registar</button>
+    </div>
+    <div class="auth-form" id="tab-login">
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="o.teu@email.com"/>
+      </div>
+      <div class="field-group">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"/>
+      </div>
+      <p class="auth-error" id="login-error"></p>
+      <button class="btn-blue-full" onclick="doLogin()">Entrar</button>
+      <div class="divider"><span>ou</span></div>
+      <button class="btn-google" onclick="doGoogleLogin()">
+        <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
+        Continuar com Google
+      </button>
+    </div>
+    <div class="auth-form hidden" id="tab-register">
+      <div class="field-group">
+        <label>Nome completo</label>
+        <input type="text" id="reg-name" placeholder="Maria Tomas"/>
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="o.teu@email.com"/>
+      </div>
+      <div class="field-group">
+        <label>Password</label>
+        <input type="password" id="reg-password" placeholder="minimo 6 caracteres"/>
+      </div>
+      <p class="auth-error" id="reg-error"></p>
+      <button class="btn-blue-full" onclick="doRegister()">Criar conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="screen-app" class="screen">
+
+  <!-- Page: Pedido atual -->
+  <div id="page-pedido" class="page">
+    <div class="page-header"><h1 class="page-title">Pedido atual</h1></div>
+    <div id="active-request-area" class="page-scroll-body"></div>
+  </div>
+
+  <!-- Page: Menu principal -->
+  <div id="page-menu" class="page active">
+    <div class="menu-header">
+      <div class="menu-brand">
+        <img src="logo.png" alt="Handy" class="menu-logo"/>
+        <span class="menu-brand-name">handy</span>
+      </div>
+      <button class="btn-icon-round" onclick="doLogout()" title="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+    <div class="menu-scroll-body">
+      <div class="auto-request-block">
+        <button class="btn-auto-request" onclick="openAutoModal()">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Pedido Automatico
+        </button>
+        <p class="auto-hint">O sistema encontra o melhor aluno para si</p>
+      </div>
+      <div class="categories-section">
+        <h2 class="categories-title">Categorias</h2>
+        <div class="categories-scroll-wrap">
+          <div class="categories-list" id="categories-list"></div>
+          <div class="categories-scrollbar-track">
+            <div class="categories-scrollbar-thumb" id="cat-scrollbar-thumb"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Page: Historico -->
+  <div id="page-historico" class="page">
+    <div class="page-header"><h1 class="page-title">Historico</h1></div>
+    <div class="page-scroll-body" id="historico-list"></div>
+    <div id="historico-empty" class="empty-state hidden"><p>Ainda nao tens pedidos.</p></div>
+  </div>
+
+  <!-- Page: Definicoes -->
+  <div id="page-def" class="page">
+    <div class="page-header"><h1 class="page-title">Definicoes</h1></div>
+    <div class="page-scroll-body">
+      <div class="settings-profile-card">
+        <div class="settings-avatar" id="settings-avatar">M</div>
+        <div>
+          <div class="settings-name" id="settings-name">-</div>
+          <div class="settings-email" id="settings-email">-</div>
+        </div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-row">
+          <span>Notificacoes</span>
+          <label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label>
+        </div>
+        <div class="settings-row">
+          <span>Modo escuro</span>
+          <label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleDark(this)"/><span class="toggle-slider"></span></label>
+        </div>
+      </div>
+      <button class="btn-danger-full" onclick="clearAllData()">Limpar dados locais</button>
+      <button class="btn-logout-full" onclick="doLogout()">Terminar sessao</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <button class="tab-btn" data-page="pedido" onclick="switchTab('pedido')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      <span>Pedido</span>
+    </button>
+    <button class="tab-btn active" data-page="menu" onclick="switchTab('menu')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>
+      <span>Menu</span>
+    </button>
+    <button class="tab-btn" data-page="historico" onclick="switchTab('historico')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+      <span>Historico</span>
+    </button>
+    <button class="tab-btn" data-page="def" onclick="switchTab('def')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Definicoes</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FULL-SCREEN OVERLAY: Pedido Automatico
+     ═══════════════════════════════════════════════════════════ -->
+<div id="fs-auto" class="fscreen hidden">
+  <div class="fscreen-header">
+    <button class="fscreen-back" onclick="closeFullScreen('fs-auto')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+      Voltar
+    </button>
+    <div class="fscreen-brand">
+      <img src="logo.png" class="fscreen-logo" alt=""/>
+      <span>handy</span>
+    </div>
+  </div>
+  <div class="fscreen-body" id="auto-modal-content">
+    <div id="auto-step-form">
+      <h2 class="fscreen-title">Pedido Automatico</h2>
+      <p class="sheet-sub">Preenche os detalhes e o sistema encontra o aluno ideal.</p>
+      <div class="field-group">
+        <label>Categoria <span class="req">*</span></label>
+        <div class="select-wrap"><select id="auto-category"></select></div>
+      </div>
+      <div class="field-group">
+        <label>Urgencia <span class="req">*</span></label>
+        <div class="urgency-row">
+          <label class="urg-opt"><input type="radio" name="auto-urg" value="BAIXA"/><span class="urg-chip low">Baixa</span></label>
+          <label class="urg-opt"><input type="radio" name="auto-urg" value="MEDIA" checked/><span class="urg-chip med">Media</span></label>
+          <label class="urg-opt"><input type="radio" name="auto-urg" value="ALTA"/><span class="urg-chip high">Alta</span></label>
+          <label class="urg-opt"><input type="radio" name="auto-urg" value="URGENTE"/><span class="urg-chip urg">Urgente</span></label>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Nivel de experiencia</label>
+        <div class="select-wrap">
+          <select id="auto-level">
+            <option value="BASICO">Basico</option>
+            <option value="INTERMEDIO" selected>Intermedio</option>
+            <option value="AVANCADO">Avancado</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Descricao <span class="req">*</span></label>
+        <textarea id="auto-desc" rows="3" placeholder="Descreve o que precisas..."></textarea>
+      </div>
+      <div class="field-group">
+        <label>Localizacao</label>
+        <input type="text" id="auto-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
+      </div>
+      <p class="form-error" id="auto-form-error"></p>
+      <button class="btn-blue-full" onclick="submitAutoRequest()">Enviar pedido</button>
+    </div>
+    <div id="auto-step-sending" class="hidden">
+      <div class="sending-anim">
+        <div class="send-ring"></div>
+        <img src="logo.png" class="send-logo"/>
+      </div>
+      <h2 class="fscreen-title" id="auto-send-title">A enviar propostas...</h2>
+      <p class="sheet-sub" id="auto-send-sub">O sistema esta a procurar os alunos mais adequados.</p>
+      <div class="log-box" id="auto-log"></div>
+    </div>
+    <div id="auto-step-waiting" class="hidden">
+      <div class="waiting-icon">&#9203;</div>
+      <h2 class="fscreen-title">Propostas enviadas!</h2>
+      <p class="sheet-sub">Os alunos selecionados foram notificados. Receberas uma notificacao quando algum aceitar.</p>
+      <div class="waiting-info-box" id="waiting-info"></div>
+      <button class="btn-ghost-full" onclick="closeFullScreen('fs-auto')" style="margin-top:1rem">Fechar e aguardar</button>
+    </div>
+    <div id="auto-step-choose" class="hidden">
+      <h2 class="fscreen-title">&#127881; Alunos disponiveis!</h2>
+      <p class="sheet-sub" id="auto-choose-sub">Os seguintes alunos aceitaram a tua proposta. Escolhe um:</p>
+      <div class="students-list" id="auto-students-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FULL-SCREEN OVERLAY: Lista alunos (manual)
+     ═══════════════════════════════════════════════════════════ -->
+<div id="fs-manual" class="fscreen hidden">
+  <div class="fscreen-header">
+    <button class="fscreen-back" onclick="closeFullScreen('fs-manual')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+      Voltar
+    </button>
+    <div class="fscreen-brand">
+      <img src="logo.png" class="fscreen-logo" alt=""/>
+      <span>handy</span>
+    </div>
+  </div>
+  <div class="fscreen-body">
+    <h2 class="fscreen-title" id="fs-manual-title">Alunos disponiveis</h2>
+    <p class="sheet-sub" id="fs-manual-sub"></p>
+    <div class="students-list" id="fs-manual-students-list"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     FULL-SCREEN OVERLAY: Perfil do aluno
+     ═══════════════════════════════════════════════════════════ -->
+<div id="fs-profile" class="fscreen hidden">
+  <div class="fscreen-header">
+    <button class="fscreen-back" onclick="closeFullScreen('fs-profile')">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>
+      Voltar
+    </button>
+    <div class="fscreen-brand">
+      <img src="logo.png" class="fscreen-logo" alt=""/>
+      <span>handy</span>
+    </div>
+  </div>
+  <div class="fscreen-body">
+    <div id="fs-profile-content"></div>
+  </div>
+</div>
+
+<!-- MODAL: Enviar proposta manual -->
+<div id="modal-send-proposal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeModal('modal-send-proposal')"></div>
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <h2 class="sheet-title">Enviar proposta</h2>
+    <p class="sheet-sub" id="proposal-to-name"></p>
+    <div class="field-group">
+      <label>Descricao breve <span class="req">*</span></label>
+      <textarea id="proposal-desc" rows="3" placeholder="Descreve o servico que precisas..."></textarea>
+    </div>
+    <div class="field-group">
+      <label>Localizacao</label>
+      <input type="text" id="proposal-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
+    </div>
+    <p class="form-error" id="proposal-error"></p>
+    <button class="btn-blue-full" onclick="sendManualProposal()">Enviar proposta</button>
+    <button class="btn-ghost-full" onclick="closeModal('modal-send-proposal')">Cancelar</button>
+  </div>
+</div>
+
+<!-- MODAL: OK -->
+<div id="modal-ok" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeModal('modal-ok')"></div>
+  <div class="modal-sheet center-sheet">
+    <div class="ok-icon" id="ok-icon">&#127881;</div>
+    <h2 class="sheet-title" id="ok-title">Feito!</h2>
+    <p class="sheet-sub" id="ok-body"></p>
+    <button class="btn-blue-full" onclick="closeModal('modal-ok')">OK</button>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="app.js"></script>
+</body>
+</html>
