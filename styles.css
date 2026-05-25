@@ -8,7 +8,7 @@
   --blue-light: #c8dcff;
   --blue-mid:   #5a9af5;
   --blue-pale:  #e8f2ff;
-  --bg:         #dce8ff;          /* fundo azulado */
+  --bg:         #ffffff;          
   --surface:    #eef4ff;          /* cards */
   --surface-2:  #f5f8ff;
   --border:     #b8cef0;
@@ -113,8 +113,10 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .form-error{font-size:.82rem;color:var(--red);min-height:1.1em;margin-bottom:.25rem;}
 
 /* ── APP SHELL ── */
-#screen-app{display:none;position:relative;height:100vh;overflow:hidden;}
+#screen-app{display:none;position:relative;height:100vh;overflow:hidden;background:#ffffff;}
 #screen-app.active{display:flex;flex-direction:column;}
+#screen-app::before{content:'';pointer-events:none;position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(26,86,219,.13) 100%);z-index:0;}
+#screen-app > *{position:relative;z-index:1;}
 .page{display:none;flex-direction:column;flex:1;overflow:hidden;padding-bottom:68px;}
 .page.active{display:flex;}
 .page-header{padding:1.25rem 1.25rem .75rem;background:var(--blue-dark);border-bottom:1px solid var(--blue-deep);flex-shrink:0;}
