@@ -1200,17 +1200,21 @@ function getStudentStats(studentId) {
   const s = STUDENTS.find(x => x.id === studentId);
   const stored = LS.get(KEY_STUDENT_STATS) || {};
   const override = stored[studentId] || {};
-
-  // Calcular rating base a partir das reviews hardcoded
   const baseReviews = s?.reviews || [];
   const baseRating = baseReviews.length > 0
     ? Math.round((baseReviews.reduce((a, r) => a + r.rating, 0) / baseReviews.length) * 10) / 10
     : s?.rating ?? 0;
-
   return {
     rating:     override.rating     ?? baseRating,
     nServices:  override.nServices  ?? s?.nServices ?? 0,
   };
+}
+
+
+function saveStudentStats(studentId, patch) {
+  const all = LS.get(KEY_STUDENT_STATS) || {};
+  all[studentId] = { ...(all[studentId] || {}), ...patch };
+  LS.set(KEY_STUDENT_STATS, all);
 }
 
 function simulateCompleteService(reqId) {
