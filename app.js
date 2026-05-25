@@ -536,8 +536,8 @@ function openStudentProfile(studentId, ctx) {
   if (!s) return;
 
   const dynStats = getStudentStats(s.id);
-  const dynRating = dynStats?.rating ?? s.rating;
-  const dynNServices = dynStats?.nServices ?? s.nServices;
+  const dynRating = dynStats.rating;
+  const dynNServices = dynStats.nServices;
 
   const stars = starStr(dynRating);
   const catTags = s.cats.map(cid => {
@@ -1021,15 +1021,17 @@ function renderActiveRequest() {
   }
 
   const stu = active.assignedStudent;
-  const isConfirmed     = active.status === 'CONFIRMADO' && stu;
-  const isWaiting       = (active.status === 'EM_SELECAO' || active.status === 'AGUARDA');
-  const isPayment       = active.status === 'AGUARDA_PAGAMENTO';
-  const isPaid          = active.status === 'PAGO';
-  const isExecution     = active.status === 'EM_EXECUCAO';
-  const hasCandidates   = active.acceptedCandidates && active.acceptedCandidates.length > 0;
+const isConfirmed     = active.status === 'CONFIRMADO' && stu;
+const isWaiting       = (active.status === 'EM_SELECAO' || active.status === 'AGUARDA');
+const isPayment       = active.status === 'AGUARDA_PAGAMENTO';
+const isPaid          = active.status === 'PAGO';
+const isExecution     = active.status === 'EM_EXECUCAO';
+const hasCandidates   = active.acceptedCandidates && active.acceptedCandidates.length > 0;
 
-  // Student block — shows in confirmed state and in manual-AGUARDA state
-  const stuSection = stu ? `
+// Student block — shows in confirmed state and in manual-AGUARDA state
+const stuSection = stu ? (() => {
+  const stuDynRating = getStudentStats(stu.id)?.rating ?? stu.rating;
+  return `
     <div class="req-student-block" onclick="openStudentProfile('${stu.id}','pedido')" style="cursor:pointer">
       <div class="req-student-header">
         <div class="stu-avatar small">${stu.name[0]}</div>
@@ -1043,10 +1045,11 @@ function renderActiveRequest() {
               : ''
           }</div>
         </div>
-        <span class="stars">${starStr(stu.rating)} <span style="font-size:.72rem;color:rgba(255,255,255,.7)">${stu.rating.toFixed(1)}</span></span>
+        <span class="stars">${starStr(stuDynRating)} <span style="font-size:.72rem;color:rgba(255,255,255,.7)">${stuDynRating.toFixed(1)}</span></span>
       </div>
       <div class="req-student-view-profile">Ver perfil completo →</div>
-    </div>` : '';
+    </div>`;
+})() : '';
 
   // Accepted candidates list (auto: waiting, has candidates)
   let candidatesSection = '';
@@ -1194,13 +1197,20 @@ function simulateStartService(reqId) {
 }
 
 function getStudentStats(studentId) {
-  const all = LS.get(KEY_STUDENT_STATS) || {};
-  return all[studentId] || null;
-}
-function saveStudentStats(studentId, patch) {
-  const all = LS.get(KEY_STUDENT_STATS) || {};
-  all[studentId] = { ...(all[studentId] || {}), ...patch };
-  LS.set(KEY_STUDENT_STATS, all);
+  const s = STUDENTS.find(x => x.id === studentId);
+  const stored = LS.get(KEY_STUDENT_STATS) || {};
+  const override = stored[studentId] || {};
+
+  // Calcular rating base a partir das reviews hardcoded
+  const baseReviews = s?.reviews || [];
+  const baseRating = baseReviews.length > 0
+    ? Math.round((baseReviews.reduce((a, r) => a + r.rating, 0) / baseReviews.length) * 10) / 10
+    : s?.rating ?? 0;
+
+  return {
+    rating:     override.rating     ?? baseRating,
+    nServices:  override.nServices  ?? s?.nServices ?? 0,
+  };
 }
 
 function simulateCompleteService(reqId) {
@@ -1415,9 +1425,9 @@ function showOkModal(icon,title,body) {
 // STUDENT CARD
 // ============================================================
 function renderStudentCard(s, mode, clientLocation) {
-  const dynStats = getStudentStats(s.id);
-  const dynRating = dynStats?.rating ?? s.rating;
-  const dynNServices = dynStats?.nServices ?? s.nServices;
+   const dynStats = getStudentStats(s.id);
+   const dynRating = dynStats.rating;
+   const dynNServices = dynStats.nServices;
 
   const stars = starStr(dynRating);
   // Distance badge — shown when clientLocation is provided
