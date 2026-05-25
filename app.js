@@ -1337,7 +1337,6 @@ function sendChatMessage(reqId) {
 function renderHistorico() {
   const list  = document.getElementById('historico-list');
   const empty = document.getElementById('historico-empty');
-  // Only show non-cancelled requests in history
   const all   = getUserRequests().filter(r => r.status !== 'CANCELADO').slice().reverse();
   if (all.length===0) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
@@ -1347,13 +1346,25 @@ function renderHistorico() {
            👤 ${r.assignedStudent.name} · ${r.assignedStudent.school} <span style="font-size:.7rem;color:var(--blue-light)">Ver perfil</span>
          </div>`
       : '';
-    // Show eval button for completed-without-review, or show review if exists
     let evalLine = '';
     if (r.status === 'CONCLUIDO' && !r.evaluation) {
       evalLine = `<button class="btn-eval-inline" onclick="openEvaluation('${r.id}')">⭐ Avaliar serviço</button>`;
     } else if (r.evaluation) {
-  const cmnt = r.evaluation.comment || '';
-  evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)}${cmnt ? ` — <em>${cmnt.slice(0,40)}${cmnt.length>40?'…':''}</em>` : ''}</div>`;
+      const cmnt = r.evaluation.comment || '';
+      evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)}${cmnt ? ` — <em>${cmnt.slice(0,40)}${cmnt.length>40?'…':''}</em>` : ''}</div>`;
+    }
+    return `
+    <div class="hist-card">
+      <div class="hist-icon">${r.catEmoji}</div>
+      <div class="hist-info">
+        <div class="hist-title">${r.catName}${r.description?' — '+r.description.slice(0,38)+(r.description.length>38?'…':''):''}</div>
+        <div class="hist-date">${formatDate(r.createdAt)} · ${r.type==='AUTO'?'🤖 Auto':'🔍 Manual'}</div>
+        ${stuLine}
+        ${evalLine}
+      </div>
+      <span class="status-chip chip-${r.status}">${STATUS_LBL[r.status]||r.status}</span>
+    </div>`;
+  }).join('');
 }
 return `...`;
     <div class="hist-card">
