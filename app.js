@@ -41,6 +41,65 @@ const CATEGORIES = [
   { id:'outros',      name:'Outros',           emoji:'🔩' },
 ];
 
+// ── Location system ─────────────────────────────────────────
+// Coordenadas aproximadas das cidades (latitude, longitude)
+const CITY_COORDS = {
+  'Aveiro':   { lat: 40.6405, lon: -8.6538 },
+  'Lisboa':   { lat: 38.7167, lon: -9.1333 },
+  'Porto':    { lat: 41.1496, lon: -8.6109 },
+  'Coimbra':  { lat: 40.2033, lon: -8.4103 },
+  'Braga':    { lat: 41.5454, lon: -8.4265 },
+  'Setúbal':  { lat: 38.5244, lon: -8.8882 },
+  'Faro':     { lat: 37.0194, lon: -7.9322 },
+  'Viseu':    { lat: 40.6566, lon: -7.9122 },
+  'Leiria':   { lat: 39.7436, lon: -8.8071 },
+  'Évora':    { lat: 38.5671, lon: -7.9086 },
+  'Funchal':  { lat: 32.6669, lon: -16.9241 },
+  'Guimarães':{ lat: 41.4425, lon: -8.2944 },
+  'Viana do Castelo': { lat: 41.6931, lon: -8.8340 },
+  'Castelo Branco': { lat: 39.8229, lon: -7.4912 },
+  'Beja':     { lat: 38.0154, lon: -7.8639 },
+};
+
+// Fórmula de Haversine — distância em km entre dois pontos
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 +
+            Math.cos(lat1 * Math.PI/180) * Math.cos(lat2 * Math.PI/180) *
+            Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Tenta extrair uma cidade reconhecida de uma string de localização livre
+function extractCity(locationStr) {
+  if (!locationStr) return null;
+  const lower = locationStr.toLowerCase();
+  for (const city of Object.keys(CITY_COORDS)) {
+    if (lower.includes(city.toLowerCase())) return city;
+  }
+  return null;
+}
+
+// Distância em km entre localização do cliente e cidade do aluno
+// Devolve null se não for possível calcular
+function distanceClientToStudent(clientLocation, studentCity) {
+  const clientCity = extractCity(clientLocation);
+  if (!clientCity || !studentCity) return null;
+  const c1 = CITY_COORDS[clientCity];
+  const c2 = CITY_COORDS[studentCity];
+  if (!c1 || !c2) return null;
+  return haversineKm(c1.lat, c1.lon, c2.lat, c2.lon);
+}
+
+// Limiar de distância: > REJECT_KM → aluno rejeita pedido manual
+const REJECT_KM  = 80;
+// > FAR_KM → penalização forte no score automático
+const FAR_KM     = 120;
+// > NEAR_KM → bónus no score automático
+const NEAR_KM    = 30;
+
 // ── Students — max 2 competências, maioria 1 ─────────────────
 // reviews: array of {author, text, rating, date}
 const STUDENTS = [
@@ -111,10 +170,14 @@ const URGENCY_LBL = { BAIXA:'Baixa', MEDIA:'Média', ALTA:'Alta', URGENTE:'Urgen
 const STATUS_LBL  = {
   PENDENTE:'Pendente', EM_SELECAO:'A selecionar',
   AGUARDA:'Aguardar', CONFIRMADO:'Confirmado',
+  AGUARDA_PAGAMENTO:'Aguarda Pagamento',
+  PAGO:'Pagamento Efetuado',
+  EM_EXECUCAO:'Em Execução',
   CANCELADO:'Cancelado', CONCLUIDO:'Concluído',
+  CONCLUIDO_SEM_AVALIACAO:'Concluído s/ Avaliação',
 };
 
-// ── Smart scoring ────────────────────────────────────────────
+// ── Smart scoring (inclui localização) ──────────────────────
 function scoreStudent(student, req) {
   if (!student.cats.includes(req.catId)) return -1;
   let score = 30 + student.rating * 10;
@@ -125,6 +188,20 @@ function scoreStudent(student, req) {
   else if(req.urgency==='ALTA') { score+=8; score+=student.nServices*0.15; }
   else { score+=student.nServices*0.1; }
   score += Math.min(student.nServices,30)*0.5;
+
+  // ── Localização ──────────────────────────────────────────
+  // Se o pedido tem localização, usamo-la; senão sem penalização
+  if (req.location) {
+    const dist = distanceClientToStudent(req.location, student.location);
+    if (dist !== null) {
+      if (dist <= NEAR_KM)       score += 25;  // muito perto — bónus forte
+      else if (dist <= REJECT_KM) score += 10; // perto — bónus moderado
+      else if (dist <= FAR_KM)   score -= 15;  // longe — penalização
+      else                       score -= 35;  // muito longe — forte penalização
+    }
+    // Se não reconhecemos a cidade, sem ajuste (benefício da dúvida)
+  }
+
   return score;
 }
 
@@ -390,17 +467,71 @@ function sendManualProposal() {
     assignedStudent: pendingManualStudent,
     createdAt:       new Date().toISOString(),
   };
-  saveRequest(req);
 
-  closeFullScreen('fs-proposal');
-  closeFullScreen('fs-profile');
-  closeFullScreen('fs-manual');
+  // Calculate distance BEFORE saving
+  const dist     = distanceClientToStudent(loc, pendingManualStudent.location);
+  const clientCity  = extractCity(loc);
+  const studentCity = pendingManualStudent.location;
+  const distLabel = dist !== null ? `${Math.round(dist)} km` : '—';
+  const tooFar    = dist !== null && dist > REJECT_KM;
 
-  showOkModal('📨', 'Proposta enviada!',
-    `A tua proposta foi enviada a <strong>${pendingManualStudent.name}</strong>. Receberás uma notificação quando ele responder.`);
+  // Switch to the sending sub-step inside fs-proposal
+  document.getElementById('fp-form-body').classList.add('hidden');
+  document.getElementById('fp-log-body').classList.remove('hidden');
+  document.getElementById('fp-log-title').textContent = 'A enviar proposta…';
+  document.getElementById('fp-log-box').innerHTML = '';
 
-  renderActiveRequest();
-  renderHistorico();
+  const logEl = document.getElementById('fp-log-box');
+
+  const lines = [
+    { t:300,  cls:'log-info', msg:`▶ POST /api/v1/jobs — proposta para ${pendingManualStudent.name}` },
+    { t:700,  cls:'log-ok',   msg:`✓ Pedido criado [${req.id.slice(-6)}]` },
+    { t:1050, cls:'log-info', msg:`▶ GET /api/v1/maps/distance — verificar proximidade` },
+    clientCity && studentCity
+      ? { t:1500, cls:'log-info', msg:`  Cliente: ${clientCity} · Aluno: ${studentCity}` }
+      : { t:1500, cls:'log-warn', msg:`⚠ Localização não reconhecida — sem verificação` },
+    dist !== null
+      ? { t:1900, cls: tooFar ? 'log-warn' : 'log-ok',
+          msg: tooFar
+            ? `⚠ Distância: ${distLabel} — acima do limite (${REJECT_KM} km)`
+            : `✓ Distância: ${distLabel} — dentro do limite (${REJECT_KM} km)` }
+      : { t:1900, cls:'log-warn', msg:`⚠ Distância não calculada — a enviar na mesma` },
+    tooFar
+      ? { t:2400, cls:'log-warn', msg:`  ${pendingManualStudent.name} a analisar distância…` }
+      : { t:2400, cls:'log-ok',   msg:`▶ POST /api/v1/notifications/job — notificar aluno` },
+    tooFar
+      ? { t:3000, cls:'log-warn', msg:`✗ POST /api/v1/jobs/${req.id.slice(-6)}/reject — recusado` }
+      : { t:3000, cls:'log-ok',   msg:`✓ Proposta entregue — a aguardar resposta` },
+  ];
+
+  lines.forEach(({ t, cls, msg }) => setTimeout(() => {
+    const l = document.createElement('div');
+    l.className = `log-line ${cls}`; l.textContent = msg;
+    logEl.appendChild(l); logEl.scrollTop = logEl.scrollHeight;
+  }, t));
+
+  setTimeout(() => {
+    // Reset form state
+    document.getElementById('fp-form-body').classList.remove('hidden');
+    document.getElementById('fp-log-body').classList.add('hidden');
+
+    if (tooFar) {
+      // Student rejects — don't save request, show rejection screen
+      closeFullScreen('fs-proposal');
+      showOkModal('❌', 'Proposta recusada',
+        `<strong>${pendingManualStudent.name}</strong> recusou o teu pedido porque a localização indicada (<em>${loc}</em>) está demasiado longe de <strong>${studentCity}</strong> (${distLabel}).<br><br>Tenta procurar um aluno mais próximo ou ajusta a localização.`);
+    } else {
+      // Save request and show success
+      saveRequest(req);
+      closeFullScreen('fs-proposal');
+      closeFullScreen('fs-profile');
+      closeFullScreen('fs-manual');
+      showOkModal('📨', 'Proposta enviada!',
+        `A tua proposta foi enviada a <strong>${pendingManualStudent.name}</strong>${dist !== null ? ` (${distLabel} de distância)` : ''}. Receberás uma notificação quando ele responder.`);
+      renderActiveRequest();
+      renderHistorico();
+    }
+  }, 3500);
 }
 
 // ============================================================
@@ -428,7 +559,7 @@ function submitAutoRequest() {
   if (hasActiveRequest()) { err.textContent = 'Já tens um pedido ativo.'; return; }
 
   // Check if any candidates exist BEFORE creating the request
-  const mockReq = { catId, level, urgency: urg };
+  const mockReq = { catId, level, urgency: urg, location: loc };
   const hasCandidates = STUDENTS.some(s => scoreStudent(s, mockReq) >= 0);
   if (!hasCandidates) {
     err.textContent = '';
@@ -458,10 +589,12 @@ function submitAutoRequest() {
 
   runAutoLog(catId, level, urg, () => {
     showAutoStep('auto-step-waiting');
+    const locCity = extractCity(loc);
     document.getElementById('waiting-info').innerHTML =
       `<strong>Pedido:</strong> ${cat.emoji} ${cat.name}<br>
        <strong>Urgência:</strong> ${URGENCY_LBL[urg]}<br>
        <strong>Nível:</strong> ${LEVEL_LBL[level]}<br>
+       <strong>Localização:</strong> ${loc ? (locCity ? `${loc} <span style="color:var(--green);font-size:.8rem">(${locCity} reconhecido)</span>` : `${loc} <span style="color:var(--orange);font-size:.8rem">(cidade não reconhecida)</span>`) : '<em style="color:var(--text-3)">não especificada</em>'}<br>
        <strong>Descrição:</strong> ${desc}`;
   });
 }
@@ -470,6 +603,17 @@ function runAutoLog(catId, level, urg, cb) {
   const log = document.getElementById('auto-log');
   log.innerHTML = '';
   const catName = CATEGORIES.find(c=>c.id===catId)?.name || catId;
+  const loc  = document.getElementById('auto-location').value.trim();
+  const city = extractCity(loc);
+
+  // Build location log lines
+  const locLines = loc
+    ? city
+      ? [{ t:2550, cls:'log-ok',   msg:`✓ Localização reconhecida: ${city}` },
+         { t:2700, cls:'log-info', msg:`  A calcular distâncias (Haversine)…` }]
+      : [{ t:2550, cls:'log-warn', msg:`⚠ Localização não reconhecida — sem filtro geográfico` }]
+    : [{ t:2550, cls:'log-warn', msg:`⚠ Sem localização — alunos de qualquer cidade elegíveis` }];
+
   const lines = [
     { t:300,  cls:'log-info', msg:`▶ POST /api/v1/jobs — criar pedido (${catName})` },
     { t:700,  cls:'log-ok',   msg:`✓ Pedido criado [${pendingReqAuto?.id.slice(-6)||'???'}]` },
@@ -477,9 +621,10 @@ function runAutoLog(catId, level, urg, cb) {
     { t:1600, cls:'log-info', msg:`  Motor de atribuição a avaliar candidatos…` },
     { t:2000, cls:'log-ok',   msg:`✓ Critério categoria: ${catName}` },
     { t:2200, cls:'log-ok',   msg:`✓ Critério nível: ${LEVEL_LBL[level]}` },
-    { t:2400, cls:'log-ok',   msg:`✓ Critério urgência: ${URGENCY_LBL[urg]}` },
-    { t:2700, cls:'log-info', msg:`  Score composto calculado (rating + exp + nível + urg)` },
-    { t:2900, cls:'log-info', msg:`▶ POST /api/v1/notifications/job — notificar alunos` },
+    { t:2350, cls:'log-ok',   msg:`✓ Critério urgência: ${URGENCY_LBL[urg]}` },
+    ...locLines,
+    { t:2900, cls:'log-info', msg:`  Score composto calculado (rating + exp + nível + urg + dist)` },
+    { t:3100, cls:'log-info', msg:`▶ POST /api/v1/notifications/job — notificar alunos` },
     { t:3400, cls:'log-ok',   msg:`✓ Propostas enviadas — aguardar respostas` },
   ];
   lines.forEach(({ t, cls, msg }) => setTimeout(() => {
@@ -524,7 +669,7 @@ function simulateAcceptance() {
   document.getElementById('auto-choose-sub').textContent =
     `${candidates.length} aluno${candidates.length !== 1 ? 's' : ''} aceitou a tua proposta. Escolhe um:`;
   document.getElementById('auto-students-list').innerHTML =
-    candidates.map(s => renderStudentCard(s, 'auto')).join('');
+    candidates.map(s => renderStudentCard(s, 'auto', pendingReqAuto?.location)).join('');
 }
 
 // Called from pedido tab: re-open chooser with accepted candidates
@@ -550,7 +695,7 @@ function openChooserFromPedido(reqId) {
   document.getElementById('auto-choose-sub').textContent =
     `${candidates.length} aluno${candidates.length !== 1 ? 's' : ''} aceitou a tua proposta. Escolhe um:`;
   document.getElementById('auto-students-list').innerHTML =
-    candidates.map(s => renderStudentCard(s, 'auto')).join('');
+    candidates.map(s => renderStudentCard(s, 'auto', req.location)).join('');
 
   ['auto-step-form','auto-step-sending','auto-step-waiting',
    'auto-step-no-candidates','auto-step-expired'].forEach(id =>
@@ -629,7 +774,7 @@ function chooseAutoStudent(studentId) {
 // ============================================================
 function renderActiveRequest() {
   const area = document.getElementById('active-request-area');
-  const active = getUserRequests().find(r => ['EM_SELECAO','AGUARDA','CONFIRMADO'].includes(r.status));
+  const active = getUserRequests().find(r => ACTIVE_STATUSES.includes(r.status));
 
   if (!active) {
     area.innerHTML = `
@@ -642,12 +787,15 @@ function renderActiveRequest() {
   }
 
   const stu = active.assignedStudent;
-  const isConfirmed = active.status === 'CONFIRMADO' && stu;
-  const isWaiting   = (active.status === 'EM_SELECAO' || active.status === 'AGUARDA');
-  const hasCandidates = active.acceptedCandidates && active.acceptedCandidates.length > 0;
+  const isConfirmed     = active.status === 'CONFIRMADO' && stu;
+  const isWaiting       = (active.status === 'EM_SELECAO' || active.status === 'AGUARDA');
+  const isPayment       = active.status === 'AGUARDA_PAGAMENTO';
+  const isPaid          = active.status === 'PAGO';
+  const isExecution     = active.status === 'EM_EXECUCAO';
+  const hasCandidates   = active.acceptedCandidates && active.acceptedCandidates.length > 0;
 
-  // Student block (confirmed)
-  const stuSection = isConfirmed ? `
+  // Student block (confirmed onwards)
+  const stuSection = stu ? `
     <div class="req-student-block" onclick="openStudentProfile('${stu.id}','pedido')" style="cursor:pointer">
       <div class="req-student-header">
         <div class="stu-avatar small">${stu.name[0]}</div>
@@ -672,14 +820,60 @@ function renderActiveRequest() {
       </div>`;
   }
 
-  // Simulate btn only if waiting and no candidates yet
+  // Simulate btn — waiting with no candidates yet
   const simulateBtn = (isWaiting && !hasCandidates) ? `
     <button class="btn-simulate-accept" onclick="simulateAcceptFromPedido('${active.id}')">
       🎭 Simular resposta dos alunos
     </button>` : '';
 
-  // Chat
-  const chatSection = isConfirmed ? renderChatSection(active) : '';
+  // US1.2 — Payment section
+  const paymentSection = isPayment ? `
+    <div class="us-section us-payment">
+      <div class="us-section-title">💳 Pagamento do serviço</div>
+      <p class="us-section-sub">O serviço está reservado. Realiza o pagamento para dar início ao trabalho.</p>
+      <div class="payment-methods">
+        <label class="pay-opt"><input type="radio" name="pay-method" value="mbway" checked/><span class="pay-chip">📱 MB WAY</span></label>
+        <label class="pay-opt"><input type="radio" name="pay-method" value="card"/><span class="pay-chip">💳 Cartão</span></label>
+      </div>
+      <div class="us-action-row">
+        <button class="btn-blue-sm" onclick="simulatePayment('${active.id}', true)">✅ Pagar (simular sucesso)</button>
+        <button class="btn-danger-sm" onclick="simulatePayment('${active.id}', false)">❌ Simular recusa</button>
+      </div>
+      <div id="payment-error" class="form-error" style="margin:.25rem 0 0"></div>
+    </div>` : '';
+
+  // US2.1 — Service execution section
+  const executionSection = isPaid ? `
+    <div class="us-section us-execution">
+      <div class="us-section-title">🔖 Recibo digital emitido</div>
+      <p class="us-section-sub">Pagamento efetuado com sucesso. Aguarda que o aluno inicie o serviço.</p>
+      <div class="us-action-row">
+        <button class="btn-simulate-accept" style="width:100%;margin:0" onclick="simulateStartService('${active.id}')">🎭 Simular: Aluno inicia serviço</button>
+      </div>
+    </div>` : '';
+
+  const inProgressSection = isExecution ? `
+    <div class="us-section us-inprogress">
+      <div class="us-section-title">⚙️ Serviço em execução</div>
+      <p class="us-section-sub">O aluno está a realizar o serviço. Aguarda a conclusão.</p>
+      <div class="us-action-row">
+        <button class="btn-simulate-accept" style="width:100%;margin:0" onclick="simulateCompleteService('${active.id}')">🎭 Simular: Aluno conclui serviço</button>
+      </div>
+    </div>` : '';
+
+  // Move to payment button (after confirmation)
+  const moveToPaymentBtn = isConfirmed ? `
+    <div style="padding:0 1.25rem .5rem">
+      <button class="btn-blue-full" onclick="moveToPayment('${active.id}')">💳 Avançar para pagamento</button>
+    </div>` : '';
+
+  // Chat (confirmed onwards, before completion)
+  const chatSection = (isConfirmed || isPayment || isPaid || isExecution) && stu ? renderChatSection(active) : '';
+
+  const cancelBtn = !isExecution ? `
+    <div style="padding:0 1.25rem 1.25rem">
+      <button class="btn-cancel-req" onclick="cancelActiveRequest('${active.id}')">Cancelar pedido</button>
+    </div>` : '';
 
   area.innerHTML = `
     <div class="active-req-card">
@@ -689,7 +883,7 @@ function renderActiveRequest() {
           <div class="active-req-title">${active.catName}</div>
           <div class="active-req-sub">${formatDate(active.createdAt)}</div>
         </div>
-        <span class="status-chip chip-${active.status}" style="margin-left:auto">${STATUS_LBL[active.status]}</span>
+        <span class="status-chip chip-${active.status}" style="margin-left:auto">${STATUS_LBL[active.status]||active.status}</span>
       </div>
       <div class="active-req-body">
         <div class="req-field-row"><span class="req-field-label">Tipo</span><span class="req-field-val">${active.type==='AUTO'?'🤖 Automático':'🔍 Manual'}</span></div>
@@ -700,13 +894,111 @@ function renderActiveRequest() {
       ${stuSection}
       ${candidatesSection}
       ${simulateBtn}
+      ${moveToPaymentBtn}
+      ${paymentSection}
+      ${executionSection}
+      ${inProgressSection}
       ${chatSection}
-      <div style="padding:0 1.25rem 1.25rem">
-        <button class="btn-cancel-req" onclick="cancelActiveRequest('${active.id}')">Cancelar pedido</button>
-      </div>
+      ${cancelBtn}
     </div>`;
 
-  if (isConfirmed) wireChatInput(active.id);
+  if ((isConfirmed || isPayment || isPaid || isExecution) && stu) wireChatInput(active.id);
+}
+
+// ============================================================
+// US1.2 — Payment simulation
+// ============================================================
+function moveToPayment(reqId) {
+  let all = LS.get(KEY_REQUESTS)||[];
+  const r = all.find(x=>x.id===reqId);
+  if (r) { r.status='AGUARDA_PAGAMENTO'; LS.set(KEY_REQUESTS,all); }
+  renderActiveRequest(); renderHistorico();
+  showToast('Serviço reservado! Realiza o pagamento para continuar.');
+}
+
+function simulatePayment(reqId, success) {
+  const errEl = document.getElementById('payment-error');
+  const method = document.querySelector('input[name="pay-method"]:checked')?.value || 'mbway';
+  const methodName = method === 'mbway' ? 'MB WAY' : 'Cartão';
+
+  if (!success) {
+    if (errEl) errEl.textContent = `Pagamento por ${methodName} recusado. Tenta novamente ou escolhe outro método.`;
+    showToast('❌ Pagamento recusado.');
+    return;
+  }
+
+  let all = LS.get(KEY_REQUESTS)||[];
+  const r = all.find(x=>x.id===reqId);
+  if (r) {
+    r.status = 'PAGO';
+    r.paymentMethod = methodName;
+    r.paidAt = new Date().toISOString();
+    LS.set(KEY_REQUESTS, all);
+  }
+  renderActiveRequest(); renderHistorico();
+  showToast(`✅ Pagamento via ${methodName} efetuado! Recibo emitido.`);
+}
+
+// ============================================================
+// US2.1 — Service lifecycle simulation
+// ============================================================
+function simulateStartService(reqId) {
+  let all = LS.get(KEY_REQUESTS)||[];
+  const r = all.find(x=>x.id===reqId);
+  if (r) { r.status='EM_EXECUCAO'; r.startedAt=new Date().toISOString(); LS.set(KEY_REQUESTS,all); }
+  renderActiveRequest(); renderHistorico();
+  showToast('⚙️ Aluno iniciou o serviço! Notificação enviada.');
+}
+
+function simulateCompleteService(reqId) {
+  let all = LS.get(KEY_REQUESTS)||[];
+  const r = all.find(x=>x.id===reqId);
+  if (r) { r.status='CONCLUIDO'; r.completedAt=new Date().toISOString(); LS.set(KEY_REQUESTS,all); }
+  renderActiveRequest(); renderHistorico();
+  showOkModal('🎉','Serviço concluído!',
+    'O serviço foi marcado como concluído e o pagamento foi transferido para o aluno.<br><br>Podes agora avaliar o serviço na aba de Histórico.');
+}
+
+// ============================================================
+// US2.2 — Evaluation
+// ============================================================
+function openEvaluation(reqId) {
+  const r = getUserRequests().find(x=>x.id===reqId);
+  if (!r || !r.assignedStudent) return;
+  document.getElementById('eval-req-id').value = reqId;
+  document.getElementById('eval-student-name').textContent = r.assignedStudent.name;
+  document.getElementById('eval-comment').value = '';
+  document.getElementById('eval-error').textContent = '';
+  setEvalRating(0);
+  openModal('modal-eval');
+}
+
+let evalRating = 0;
+function setEvalRating(n) {
+  evalRating = n;
+  document.querySelectorAll('.eval-star').forEach((s,i) => {
+    s.classList.toggle('active', i < n);
+  });
+}
+
+function submitEvaluation() {
+  const reqId   = document.getElementById('eval-req-id').value;
+  const comment = document.getElementById('eval-comment').value.trim();
+  const err     = document.getElementById('eval-error');
+  if (evalRating === 0) { err.textContent = 'Escolhe uma pontuação de 1 a 5 estrelas.'; return; }
+  if (!comment) { err.textContent = 'Adiciona um comentário.'; return; }
+
+  let all = LS.get(KEY_REQUESTS)||[];
+  const r = all.find(x=>x.id===reqId);
+  if (r) {
+    r.status = 'CONCLUIDO';
+    r.evaluation = { rating: evalRating, comment, date: new Date().toISOString().slice(0,10) };
+    LS.set(KEY_REQUESTS, all);
+  }
+  closeModal('modal-eval');
+  renderHistorico();
+  showOkModal('⭐','Avaliação registada!',
+    `A tua avaliação de <strong>${evalRating} estrela${evalRating>1?'s':''}</strong> foi registada no perfil de ${r?.assignedStudent?.name||'aluno'}. Obrigada!`);
 }
 
 // ============================================================
@@ -769,7 +1061,8 @@ function sendChatMessage(reqId) {
 function renderHistorico() {
   const list  = document.getElementById('historico-list');
   const empty = document.getElementById('historico-empty');
-  const all   = getUserRequests().slice().reverse();
+  // Only show non-cancelled requests in history
+  const all   = getUserRequests().filter(r => r.status !== 'CANCELADO').slice().reverse();
   if (all.length===0) { list.innerHTML=''; empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
   list.innerHTML = all.map(r => {
@@ -778,6 +1071,13 @@ function renderHistorico() {
            👤 ${r.assignedStudent.name} · ${r.assignedStudent.school} <span style="font-size:.7rem;color:var(--blue-light)">Ver perfil</span>
          </div>`
       : '';
+    // Show eval button for completed-without-review, or show review if exists
+    let evalLine = '';
+    if (r.status === 'CONCLUIDO' && !r.evaluation) {
+      evalLine = `<button class="btn-eval-inline" onclick="openEvaluation('${r.id}')">⭐ Avaliar serviço</button>`;
+    } else if (r.evaluation) {
+      evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)} — <em>${r.evaluation.comment.slice(0,40)}${r.evaluation.comment.length>40?'…':''}</em></div>`;
+    }
     return `
     <div class="hist-card">
       <div class="hist-icon">${r.catEmoji}</div>
@@ -785,8 +1085,9 @@ function renderHistorico() {
         <div class="hist-title">${r.catName}${r.description?' — '+r.description.slice(0,38)+(r.description.length>38?'…':''):''}</div>
         <div class="hist-date">${formatDate(r.createdAt)} · ${r.type==='AUTO'?'🤖 Auto':'🔍 Manual'}</div>
         ${stuLine}
+        ${evalLine}
       </div>
-      <span class="status-chip chip-${r.status}">${STATUS_LBL[r.status]}</span>
+      <span class="status-chip chip-${r.status}">${STATUS_LBL[r.status]||r.status}</span>
     </div>`;
   }).join('');
 }
@@ -808,7 +1109,8 @@ function saveRequest(req) {
   if(i>=0) all[i]=req; else all.push(req);
   LS.set(KEY_REQUESTS,all);
 }
-function hasActiveRequest() { return getUserRequests().some(r=>['EM_SELECAO','AGUARDA','CONFIRMADO'].includes(r.status)); }
+const ACTIVE_STATUSES = ['EM_SELECAO','AGUARDA','CONFIRMADO','AGUARDA_PAGAMENTO','PAGO','EM_EXECUCAO'];
+function hasActiveRequest() { return getUserRequests().some(r=>ACTIVE_STATUSES.includes(r.status)); }
 function cancelActiveRequest(reqId) {
   if (!confirm('Cancelar este pedido?')) return;
   let all=LS.get(KEY_REQUESTS)||[];
@@ -837,8 +1139,20 @@ function showOkModal(icon,title,body) {
 // ============================================================
 // STUDENT CARD
 // ============================================================
-function renderStudentCard(s, mode) {
+function renderStudentCard(s, mode, clientLocation) {
   const stars = starStr(s.rating);
+
+  // Distance badge
+  let distBadge = '';
+  if (clientLocation) {
+    const dist = distanceClientToStudent(clientLocation, s.location);
+    if (dist !== null) {
+      const km = Math.round(dist);
+      const color = km <= NEAR_KM ? 'var(--green)' : km <= REJECT_KM ? 'var(--blue)' : 'var(--orange)';
+      distBadge = `<span style="font-size:.7rem;font-weight:700;color:${color};background:${color}18;padding:.15rem .4rem;border-radius:4px;margin-left:.3rem">📍 ${km} km</span>`;
+    }
+  }
+
   let actionBtn;
   if (mode==='auto')
     actionBtn=`<button class="btn-choose" onclick="chooseAutoStudent('${s.id}')">Escolher</button>`;
@@ -848,7 +1162,7 @@ function renderStudentCard(s, mode) {
     <div class="student-card">
       <div class="stu-avatar">${s.name[0]}</div>
       <div class="stu-info">
-        <div class="stu-name">${s.name}</div>
+        <div class="stu-name">${s.name}${distBadge}</div>
         <div class="stu-meta">🏫 ${s.school} · 📍 ${s.location} · ${LEVEL_LBL[s.level]} · ✅ ${s.nServices} serv.</div>
       </div>
       <div class="stu-right">

@@ -348,3 +348,40 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .chat-send-btn{width:36px;height:36px;border-radius:50%;background:var(--blue);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;flex-shrink:0;}
 .chat-send-btn:hover{background:var(--blue-dark);}
 .chat-send-btn svg{stroke:#fff;}
+
+/* ── US Feature sections ── */
+.us-section {
+  margin: .25rem 1.25rem .5rem;
+  border-radius: var(--r-md);
+  padding: 1rem 1.1rem;
+  border: 1.5px solid var(--border);
+}
+.us-payment   { background: var(--yellow-bg); border-color: var(--yellow); }
+.us-execution { background: var(--green-bg);  border-color: var(--green); }
+.us-inprogress{ background: var(--blue-pale); border-color: var(--blue); }
+.us-section-title { font-family:var(--font); font-weight:800; font-size:.95rem; color:var(--text); margin-bottom:.3rem; }
+.us-section-sub   { font-size:.82rem; color:var(--text-2); margin-bottom:.75rem; line-height:1.5; }
+.us-action-row    { display:flex; gap:.6rem; flex-wrap:wrap; }
+.btn-blue-sm   { flex:1; padding:.65rem .9rem; background:var(--blue); color:#fff; border:none; border-radius:var(--r-sm); font-family:var(--font); font-weight:700; font-size:.82rem; cursor:pointer; transition:.2s; white-space:nowrap; }
+.btn-blue-sm:hover { background:var(--blue-dark); }
+.btn-danger-sm { flex:1; padding:.65rem .9rem; background:transparent; color:var(--red); border:1.5px solid var(--red); border-radius:var(--r-sm); font-family:var(--font); font-weight:700; font-size:.82rem; cursor:pointer; transition:.2s; white-space:nowrap; }
+.btn-danger-sm:hover { background:var(--red-bg); }
+.payment-methods { display:flex; gap:.5rem; margin-bottom:.75rem; }
+.pay-opt input { display:none; }
+.pay-chip { display:inline-block; padding:.4rem .9rem; border-radius:20px; border:2px solid var(--border); background:var(--surface); font-family:var(--font); font-size:.82rem; font-weight:700; cursor:pointer; transition:.15s; }
+.pay-opt input:checked + .pay-chip { border-color:var(--blue); background:var(--blue-pale); color:var(--blue); }
+
+/* ── Status chips extra ── */
+.chip-AGUARDA_PAGAMENTO { background:var(--yellow-bg); color:var(--yellow); }
+.chip-PAGO              { background:var(--green-bg);  color:var(--green); }
+.chip-EM_EXECUCAO       { background:var(--blue-light);color:var(--blue-dark); }
+.chip-CONCLUIDO_SEM_AVALIACAO { background:#f3f4f6; color:#6b7280; }
+
+/* ── Eval ── */
+.eval-stars-row { display:flex; gap:.35rem; justify-content:center; margin:1rem 0 .25rem; }
+.eval-star { font-size:2.4rem; color:var(--border); cursor:pointer; transition:.15s; line-height:1; }
+.eval-star.active { color:#f59e0b; }
+.eval-star:hover  { color:#fbbf24; transform:scale(1.1); }
+.btn-eval-inline { margin-top:.4rem; padding:.35rem .8rem; background:var(--blue-pale); color:var(--blue); border:1.5px solid var(--blue); border-radius:20px; font-family:var(--font); font-weight:700; font-size:.75rem; cursor:pointer; transition:.2s; display:inline-block; }
+.btn-eval-inline:hover { background:var(--blue-light); }
+.hist-eval { font-size:.78rem; color:var(--text-2); margin-top:.3rem; font-style:italic; }
