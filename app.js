@@ -11,6 +11,7 @@ const KEY_USERS    = 'handy_users';
 const KEY_SESSION  = 'handy_session';
 const KEY_REQUESTS = 'handy_requests';
 const KEY_CHATS    = 'handy_chats';
+const KEY_STUDENT_STATS = 'handy_student_stats';
 
 let currentUser          = null;
 let pendingReqAuto       = null;
@@ -534,7 +535,11 @@ function openStudentProfile(studentId, ctx) {
   const s = STUDENTS.find(x => x.id === studentId);
   if (!s) return;
 
-  const stars = starStr(s.rating);
+  const dynStats = getStudentStats(s.id);
+  const dynRating = dynStats?.rating ?? s.rating;
+  const dynNServices = dynStats?.nServices ?? s.nServices;
+
+  const stars = starStr(dynRating);
   const catTags = s.cats.map(cid => {
     const cc = CATEGORIES.find(x => x.id === cid);
     return cc ? `<span class="profile-tag">${cc.emoji} ${cc.name}</span>` : '';
@@ -1189,8 +1194,24 @@ function simulateStartService(reqId) {
   showToast('⚙️ Aluno iniciou o serviço! Notificação enviada.');
 }
 
+function getStudentStats(studentId) {
+  const all = LS.get(KEY_STUDENT_STATS) || {};
+  return all[studentId] || null;
+}
+function saveStudentStats(studentId, patch) {
+  const all = LS.get(KEY_STUDENT_STATS) || {};
+  all[studentId] = { ...(all[studentId] || {}), ...patch };
+  LS.set(KEY_STUDENT_STATS, all);
+}
+
 function simulateCompleteService(reqId) {
   let all = LS.get(KEY_REQUESTS)||[];
+  if (r.assignedStudent?.id) {
+  const s = STUDENTS.find(x => x.id === r.assignedStudent.id);
+  const stats = getStudentStats(r.assignedStudent.id);
+  const currentN = (stats?.nServices ?? s?.nServices ?? 0);
+  saveStudentStats(r.assignedStudent.id, { nServices: currentN + 1 });
+}
   const r = all.find(x=>x.id===reqId);
   if (r) { r.status='CONCLUIDO'; r.completedAt=new Date().toISOString(); LS.set(KEY_REQUESTS,all); }
   renderActiveRequest(); renderHistorico();
@@ -1225,7 +1246,6 @@ function submitEvaluation() {
   const comment = document.getElementById('eval-comment').value.trim();
   const err     = document.getElementById('eval-error');
   if (evalRating === 0) { err.textContent = 'Escolhe uma pontuação de 1 a 5 estrelas.'; return; }
-  if (!comment) { err.textContent = 'Adiciona um comentário.'; return; }
 
   let all = LS.get(KEY_REQUESTS)||[];
   const r = all.find(x=>x.id===reqId);
@@ -1233,7 +1253,22 @@ function submitEvaluation() {
     r.status = 'CONCLUIDO';
     r.evaluation = { rating: evalRating, comment, date: new Date().toISOString().slice(0,10) };
     LS.set(KEY_REQUESTS, all);
+
+    if (r.assignedStudent?.id) {
+      const s = STUDENTS.find(x => x.id === r.assignedStudent.id);
+      const storedRequests = LS.get(KEY_REQUESTS) || [];
+      const allEvals = storedRequests
+        .filter(req => req.assignedStudent?.id === r.assignedStudent.id && req.evaluation);
+      const baseReviews = s?.reviews || [];
+      const totalRatings = [
+        ...baseReviews.map(rv => rv.rating),
+        ...allEvals.map(req => req.evaluation.rating)
+      ];
+      const newAvg = totalRatings.reduce((a,b) => a + b, 0) / totalRatings.length;
+      saveStudentStats(r.assignedStudent.id, { rating: Math.round(newAvg * 10) / 10 });
+    }
   }
+
   closeModal('modal-eval');
   renderHistorico();
   showOkModal('⭐','Avaliação registada!',
@@ -1315,8 +1350,8 @@ function renderHistorico() {
     if (r.status === 'CONCLUIDO' && !r.evaluation) {
       evalLine = `<button class="btn-eval-inline" onclick="openEvaluation('${r.id}')">⭐ Avaliar serviço</button>`;
     } else if (r.evaluation) {
-      evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)} — <em>${r.evaluation.comment.slice(0,40)}${r.evaluation.comment.length>40?'…':''}</em></div>`;
-    }
+      const cmnt = r.evaluation.comment || '';
+      evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)}${cmnt ? ` — <em>${cmnt.slice(0,40)}${cmnt.length>40?'…':''}</em>` : ''}</div>`;
     return `
     <div class="hist-card">
       <div class="hist-icon">${r.catEmoji}</div>
