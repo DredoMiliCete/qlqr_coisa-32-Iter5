@@ -213,7 +213,7 @@
     <div id="auto-step-expired" class="hidden">
       <div class="waiting-icon">😔</div>
       <h2 class="fscreen-title">Ninguém aceitou</h2>
-      <p class="sheet-sub">O pedido foi cancelado porque nenhum aluno aceitou dentro do prazo.</p>
+      <p class="sheet-sub" id="auto-expired-body">O pedido foi cancelado porque nenhum aluno aceitou dentro do prazo.</p>
       <div class="info-box-warning">
         Podes tentar novamente com especificações diferentes, ou fazer uma pesquisa manual para escolheres diretamente um aluno.
       </div>
@@ -260,44 +260,25 @@
 <!-- ═══ FULL-SCREEN: Formulário de proposta ═══ -->
 <div id="fs-proposal" class="fscreen hidden">
   <div class="fscreen-header">
-    <button class="fscreen-back" id="fs-proposal-back" onclick="closeFullScreen('fs-proposal')">
+    <button class="fscreen-back" onclick="closeFullScreen('fs-proposal')">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15,18 9,12 15,6"/></svg>Voltar
     </button>
     <div class="fscreen-brand"><img src="logo.png" class="fscreen-logo" alt=""/><span>handy</span></div>
   </div>
   <div class="fscreen-body">
-
-    <!-- Sub-step: formulário -->
-    <div id="fp-form-body">
-      <h2 class="fscreen-title" id="fs-proposal-title">Enviar proposta</h2>
-      <p class="sheet-sub" id="fs-proposal-sub"></p>
-      <div class="field-group" style="margin-top:1rem">
-        <label>Descrição do serviço <span class="req">*</span></label>
-        <textarea id="proposal-desc" rows="4" placeholder="Descreve detalhadamente o que precisas..."></textarea>
-      </div>
-      <div class="field-group">
-        <label>Localização</label>
-        <input type="text" id="proposal-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
-        <span style="font-size:.75rem;color:var(--text-3);margin-top:.2rem">
-          A distância é verificada com a localização do aluno. Se for demasiado longe, o aluno pode rejeitar.
-        </span>
-      </div>
-      <p class="form-error" id="proposal-error"></p>
-      <button class="btn-blue-full" onclick="sendManualProposal()">Enviar proposta</button>
-      <button class="btn-ghost-full" onclick="closeFullScreen('fs-proposal')">Cancelar</button>
+    <h2 class="fscreen-title" id="fs-proposal-title">Enviar proposta</h2>
+    <p class="sheet-sub" id="fs-proposal-sub"></p>
+    <div class="field-group" style="margin-top:1rem">
+      <label>Descrição do serviço <span class="req">*</span></label>
+      <textarea id="proposal-desc" rows="4" placeholder="Descreve detalhadamente o que precisas..."></textarea>
     </div>
-
-    <!-- Sub-step: log de envio -->
-    <div id="fp-log-body" class="hidden">
-      <div class="sending-anim" style="margin-bottom:1.25rem">
-        <div class="send-ring"></div>
-        <img src="logo.png" class="send-logo"/>
-      </div>
-      <h2 class="fscreen-title" id="fp-log-title">A enviar proposta…</h2>
-      <p class="sheet-sub">A verificar compatibilidade e distância…</p>
-      <div class="log-box" id="fp-log-box"></div>
+    <div class="field-group">
+      <label>Localização</label>
+      <input type="text" id="proposal-location" placeholder="Ex: Rua das Flores 42, Aveiro"/>
     </div>
-
+    <p class="form-error" id="proposal-error"></p>
+    <button class="btn-blue-full" onclick="sendManualProposal()">Enviar proposta</button>
+    <button class="btn-ghost-full" onclick="closeFullScreen('fs-proposal')">Cancelar</button>
   </div>
 </div>
 

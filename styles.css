@@ -385,3 +385,32 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 .btn-eval-inline { margin-top:.4rem; padding:.35rem .8rem; background:var(--blue-pale); color:var(--blue); border:1.5px solid var(--blue); border-radius:20px; font-family:var(--font); font-weight:700; font-size:.75rem; cursor:pointer; transition:.2s; display:inline-block; }
 .btn-eval-inline:hover { background:var(--blue-light); }
 .hist-eval { font-size:.78rem; color:var(--text-2); margin-top:.3rem; font-style:italic; }
+/* ── School specialty badge ── */
+.school-specialty-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  margin-top: .5rem;
+  padding: .35rem .8rem;
+  border: 1.5px solid;
+  border-radius: 20px;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: .78rem;
+}
+
+/* ── Client review badge ── */
+.review-card-client {
+  border-color: var(--blue);
+  background: var(--blue-pale);
+}
+.review-badge {
+  background: var(--blue);
+  color: #fff;
+  font-size: .62rem;
+  font-weight: 800;
+  padding: .1rem .35rem;
+  border-radius: 10px;
+  font-family: var(--font);
+  vertical-align: middle;
+}
