@@ -590,11 +590,11 @@ function openStudentProfile(studentId, ctx) {
       <div class="profile-big-avatar">${s.name[0]}</div>
       <div class="profile-pname">${s.name}</div>
       <div class="profile-school">🏫 ${s.school} · 📍 ${s.location}</div>
-      <div class="profile-stars">${stars} <span style="font-size:.85rem;color:var(--text-2);font-family:var(--font-body)">${s.rating.toFixed(1)}</span></div>
+      <div class="profile-stars">${stars} <span style="font-size:.85rem;color:var(--text-2);font-family:var(--font-body)">${dynRating.toFixed(1)}</span></div>
     </div>
     <div class="profile-stats-row">
-      <div class="pstat"><span class="pstat-num">${s.nServices}</span><span class="pstat-lbl">Serviços</span></div>
-      <div class="pstat"><span class="pstat-num">${s.rating.toFixed(1)}</span><span class="pstat-lbl">Avaliação</span></div>
+      <div class="pstat"><span class="pstat-num">${dynNServices}</span><span class="pstat-lbl">Serviços</span></div>
+      <div class="pstat"><span class="pstat-num">${dynRating.toFixed(1)}</span><span class="pstat-lbl">Avaliação</span></div>
       <div class="pstat"><span class="pstat-num">${LEVEL_LBL[s.level]}</span><span class="pstat-lbl">Nível</span></div>
     </div>
     <div class="profile-section">
@@ -615,7 +615,6 @@ function openStudentProfile(studentId, ctx) {
       <div class="reviews-list">${reviewsHtml}</div>
     </div>
     ${actionBtn}`;
-
   openFullScreen('fs-profile');
 }
 
@@ -1206,14 +1205,17 @@ function saveStudentStats(studentId, patch) {
 
 function simulateCompleteService(reqId) {
   let all = LS.get(KEY_REQUESTS)||[];
-  if (r.assignedStudent?.id) {
-  const s = STUDENTS.find(x => x.id === r.assignedStudent.id);
-  const stats = getStudentStats(r.assignedStudent.id);
-  const currentN = (stats?.nServices ?? s?.nServices ?? 0);
-  saveStudentStats(r.assignedStudent.id, { nServices: currentN + 1 });
-}
   const r = all.find(x=>x.id===reqId);
-  if (r) { r.status='CONCLUIDO'; r.completedAt=new Date().toISOString(); LS.set(KEY_REQUESTS,all); }
+  if (r) {
+    r.status='CONCLUIDO'; r.completedAt=new Date().toISOString();
+    if (r.assignedStudent?.id) {
+      const s = STUDENTS.find(x => x.id === r.assignedStudent.id);
+      const stats = getStudentStats(r.assignedStudent.id);
+      const currentN = (stats?.nServices ?? s?.nServices ?? 0);
+      saveStudentStats(r.assignedStudent.id, { nServices: currentN + 1 });
+    }
+    LS.set(KEY_REQUESTS, all);
+  }
   renderActiveRequest(); renderHistorico();
   showOkModal('🎉','Serviço concluído!',
     'O serviço foi marcado como concluído e o pagamento foi transferido para o aluno.<br><br>Podes agora avaliar o serviço na aba de Histórico.');
@@ -1350,9 +1352,10 @@ function renderHistorico() {
     if (r.status === 'CONCLUIDO' && !r.evaluation) {
       evalLine = `<button class="btn-eval-inline" onclick="openEvaluation('${r.id}')">⭐ Avaliar serviço</button>`;
     } else if (r.evaluation) {
-      const cmnt = r.evaluation.comment || '';
-      evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)}${cmnt ? ` — <em>${cmnt.slice(0,40)}${cmnt.length>40?'…':''}</em>` : ''}</div>`;
-    return `
+  const cmnt = r.evaluation.comment || '';
+  evalLine = `<div class="hist-eval">⭐ ${'★'.repeat(r.evaluation.rating)}${cmnt ? ` — <em>${cmnt.slice(0,40)}${cmnt.length>40?'…':''}</em>` : ''}</div>`;
+}
+return `...`;
     <div class="hist-card">
       <div class="hist-icon">${r.catEmoji}</div>
       <div class="hist-info">
@@ -1414,8 +1417,11 @@ function showOkModal(icon,title,body) {
 // STUDENT CARD
 // ============================================================
 function renderStudentCard(s, mode, clientLocation) {
-  const stars = starStr(s.rating);
+  const dynStats = getStudentStats(s.id);
+  const dynRating = dynStats?.rating ?? s.rating;
+  const dynNServices = dynStats?.nServices ?? s.nServices;
 
+  const stars = starStr(dynRating);
   // Distance badge — shown when clientLocation is provided
   let distBadge = '';
   if (clientLocation) {
@@ -1429,7 +1435,6 @@ function renderStudentCard(s, mode, clientLocation) {
       distBadge = ` <span style="font-size:.68rem;font-weight:700;color:${color};background:${bg};padding:.1rem .4rem;border-radius:4px;white-space:nowrap">📍 ${km} km</span>`;
     }
   }
-
   let actionBtn;
   if (mode==='auto')
     actionBtn=`<button class="btn-choose" onclick="chooseAutoStudent('${s.id}')">Escolher</button>`;
@@ -1440,10 +1445,10 @@ function renderStudentCard(s, mode, clientLocation) {
       <div class="stu-avatar">${s.name[0]}</div>
       <div class="stu-info">
         <div class="stu-name">${s.name}${distBadge}</div>
-        <div class="stu-meta">🏫 ${s.school} · 📍 ${s.location} · ${LEVEL_LBL[s.level]} · ✅ ${s.nServices} serv.</div>
+        <div class="stu-meta">🏫 ${s.school} · 📍 ${s.location} · ${LEVEL_LBL[s.level]} · ✅ ${dynNServices} serv.</div>
       </div>
       <div class="stu-right">
-        <span class="stars">${stars} <span style="font-size:.72rem;color:var(--text-2)">${s.rating.toFixed(1)}</span></span>
+        <span class="stars">${stars} <span style="font-size:.72rem;color:var(--text-2)">${dynRating.toFixed(1)}</span></span>
         ${actionBtn}
       </div>
     </div>`;
