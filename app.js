@@ -1366,19 +1366,6 @@ function renderHistorico() {
     </div>`;
   }).join('');
 }
-return `...`;
-    <div class="hist-card">
-      <div class="hist-icon">${r.catEmoji}</div>
-      <div class="hist-info">
-        <div class="hist-title">${r.catName}${r.description?' — '+r.description.slice(0,38)+(r.description.length>38?'…':''):''}</div>
-        <div class="hist-date">${formatDate(r.createdAt)} · ${r.type==='AUTO'?'🤖 Auto':'🔍 Manual'}</div>
-        ${stuLine}
-        ${evalLine}
-      </div>
-      <span class="status-chip chip-${r.status}">${STATUS_LBL[r.status]||r.status}</span>
-    </div>`;
-  }).join('');
-}
 
 function renderSettings() {
   if (!currentUser) return;
