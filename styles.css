@@ -50,13 +50,13 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-hei
 
 /* ── WELCOME ── */
 #screen-welcome{
-  background:linear-gradient(160deg,var(--blue-deep) 0%,var(--blue-dark) 40%,var(--blue) 75%,var(--blue-mid) 100%);
+  background:#ffffff;
   align-items:center;justify-content:center;position:relative;overflow:hidden;
 }
 #screen-welcome::before{
   content:'';position:absolute;inset:0;
-  background:radial-gradient(ellipse at 20% 80%,rgba(255,255,255,.06) 0%,transparent 60%),
-             radial-gradient(ellipse at 80% 20%,rgba(255,255,255,.08) 0%,transparent 50%);
+  background:radial-gradient(ellipse at center,transparent 40%,rgba(26,86,219,.15) 100%);
+  pointer-events:none;
 }
 .welcome-body{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;width:100%;padding:0 2rem;}
 .welcome-logo-wrap{display:flex;flex-direction:column;align-items:center;gap:.75rem;margin-bottom:1rem;}
