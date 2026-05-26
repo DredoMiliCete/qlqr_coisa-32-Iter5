@@ -758,13 +758,97 @@ function enterApp() {
   renderSettings();
 }
 
+function renderPublicProfile() {
+  if (!currentUser) return;
+  const body = document.getElementById('public-profile-body');
+  if (!body) return;
+  const p = LS.get(KEY_PROFILE) || {};
+  const reqs = getUserRequests().filter(r => r.status === 'CONCLUIDO' || r.status === 'CONCLUIDO_SEM_AVALIACAO');
+  // Gather all reviews the user left (stored as r.evaluation inside requests)
+  const allUserReviews = getUserRequests()
+    .filter(r => r.evaluation)
+    .map(r => ({ ...r.evaluation, studentName: r.assignedStudent?.name }));
+  // Member since: approximate from oldest request or today
+  const allReqs = LS.get(KEY_REQUESTS) || [];
+  const userReqs = allReqs.filter(r => r.userId === currentUser.id);
+  const oldest = userReqs.reduce((min, r) => (!min || r.createdAt < min) ? r.createdAt : min, null);
+  const memberSince = oldest ? new Date(oldest).getFullYear() : new Date().getFullYear();
+  const avgRating = allUserReviews.length > 0
+    ? (allUserReviews.reduce((s,e) => s + (e.rating||5), 0) / allUserReviews.length).toFixed(1)
+    : '—';
+
+  const starsHtml = (r) => '★'.repeat(Math.round(r)) + '☆'.repeat(5 - Math.round(r));
+
+  const servicesHtml = reqs.length === 0
+    ? `<div class="pub-empty">Ainda não tens serviços concluídos.</div>`
+    : reqs.slice(0,10).map(r => {
+        const catId = r.catId || r.category;
+        const cat = CATEGORIES.find(c => c.id === catId) || { name: r.catName || catId || 'Serviço', emoji: r.catEmoji || '🔧' };
+        const evalLine = r.evaluation
+          ? `<span class="pub-service-stars">${starsHtml(r.evaluation.rating)}</span>`
+          : '';
+        const stuName = r.assignedStudent?.name || r.studentName || '';
+        return `<div class="pub-service-item">
+          <span class="pub-service-emoji">${cat.emoji}</span>
+          <div class="pub-service-info">
+            <div class="pub-service-name">${cat.name}</div>
+            <div class="pub-service-date">${formatDate(r.createdAt)}${stuName ? ' · ' + stuName : ''}</div>
+          </div>
+          ${evalLine}
+        </div>`;
+      }).join('')
+
+  const reviewsHtml = allUserReviews.length === 0
+    ? `<div class="pub-empty">Ainda não fizeste nenhuma avaliação.</div>`
+    : allUserReviews.slice(0,8).map(e => `
+      <div class="review-card">
+        <div class="review-top">
+          <span class="review-stars">${starsHtml(e.rating)}</span>
+          ${e.studentName ? `<span class="review-author" style="font-size:.78rem;color:var(--text-2)">→ ${e.studentName}</span>` : ''}
+          <span class="review-date">${e.date || ''}</span>
+        </div>
+        <div class="review-text">${e.comment || ''}</div>
+      </div>`).join('');
+
+  body.innerHTML = `
+    <div class="pub-profile-hero">
+      <div class="pub-avatar">${(currentUser.name||'U')[0].toUpperCase()}</div>
+      <div class="pub-name">${currentUser.name}</div>
+      <div class="pub-email">${currentUser.email}</div>
+      <div class="pub-member-since">Membro desde ${memberSince}</div>
+      ${p.location ? `<div class="pub-member-since">📍 ${p.location}</div>` : ''}
+      <button class="pub-edit-btn" onclick="openSettingsSection('fs-settings-info')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Editar perfil
+      </button>
+    </div>
+
+    <div class="pub-stats-row">
+      <div class="pub-stat"><span class="pub-stat-num">${reqs.length}</span><span class="pub-stat-lbl">Serviços</span></div>
+      <div class="pub-stat"><span class="pub-stat-num">${allUserReviews.length}</span><span class="pub-stat-lbl">Avaliações</span></div>
+      <div class="pub-stat"><span class="pub-stat-num">${avgRating}</span><span class="pub-stat-lbl">Média ★</span></div>
+    </div>
+
+    ${p.bio ? `
+    <div class="pub-section-title">Sobre mim</div>
+    <div class="pub-bio-card"><div class="pub-bio-text">${p.bio}</div></div>
+    ` : ''}
+
+    <div class="pub-section-title">Serviços realizados</div>
+    <div class="pub-services-list">${servicesHtml}</div>
+
+    <div class="pub-section-title">As minhas avaliações</div>
+    <div class="pub-reviews-list">${reviewsHtml}</div>
+  `;
+}
+
 function switchTab(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(`page-${name}`)?.classList.add('active');
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.page === name));
   if (name === 'pedido')    renderActiveRequest();
   if (name === 'historico') renderHistorico();
-  if (name === 'def')       renderSettings();
+  if (name === 'def')       renderPublicProfile();
 }
 
 // ============================================================
@@ -1753,6 +1837,15 @@ function renderSettings() {
   document.body.classList.toggle('dark', dark);
 }
 
+function openSettingsSection(id) {
+  renderSettings();
+  openFullScreen(id);
+}
+
+function closeSettingsSection(id) {
+  closeFullScreen(id);
+}
+
 function saveProfileSettings() {
   const name     = document.getElementById('set-name')?.value.trim();
   const phone    = document.getElementById('set-phone')?.value.trim();
@@ -1760,7 +1853,8 @@ function saveProfileSettings() {
   const addrStreet= document.getElementById('set-addr-street')?.value.trim();
   const addrZip  = document.getElementById('set-addr-zip')?.value.trim();
   const addrCity = document.getElementById('set-addr-city')?.value.trim();
-  const msgEl    = document.getElementById('settings-save-msg');
+  // Try both possible msg elements (info section or billing section)
+  const msgEl = document.getElementById('settings-save-msg') || document.getElementById('billing-save-msg');
 
   if (name) {
     currentUser.name = name;
@@ -1773,7 +1867,7 @@ function saveProfileSettings() {
 
   const existing = LS.get(KEY_PROFILE) || {};
   LS.set(KEY_PROFILE, { ...existing, phone, location, addrStreet, addrZip, addrCity,
-    darkMode: document.getElementById('dark-toggle')?.checked || false });
+    darkMode: document.getElementById('dark-toggle')?.checked || existing.darkMode || false });
 
   document.getElementById('settings-name').textContent = currentUser.name;
   document.getElementById('settings-avatar').textContent = (currentUser.name||'U')[0].toUpperCase();
