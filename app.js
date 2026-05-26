@@ -12,6 +12,10 @@ const KEY_SESSION  = 'handy_session';
 const KEY_REQUESTS = 'handy_requests';
 const KEY_CHATS    = 'handy_chats';
 const KEY_STUDENT_STATS = 'handy_student_stats';
+const KEY_EVALS    = 'handy_evals';   // { studentId: [{author,rating,comment,date,reqId}] }
+const KEY_PROFILE  = 'handy_profile'; // extra client profile data
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 let currentUser          = null;
 let pendingReqAuto       = null;
@@ -44,169 +48,506 @@ const CATEGORIES = [
 
 // ── Schools — diferenciadas por especialidade e distrito ──────
 const SCHOOLS = {
-  // Aveiro
-  'ETP Aveiro':      { name:'ETP Aveiro',       district:'Aveiro',  specialty:'Instalações & Energia',       color:'#1a6ff0', emoji:'⚡' },
-  'ETAP Aveiro':     { name:'ETAP Aveiro',       district:'Aveiro',  specialty:'Construção & Reparação',      color:'#0d4fc4', emoji:'🔧' },
-  // Porto
-  'ETP Porto':       { name:'ETP Porto',         district:'Porto',   specialty:'Tecnologia & Construção',     color:'#7c3aed', emoji:'🪚' },
-  'EPTLH Porto':     { name:'EPTLH Porto',       district:'Porto',   specialty:'Hotelaria & Serviços Domésticos', color:'#db2777', emoji:'🍳' },
-  'EPVC Gaia':       { name:'EPVC Gaia',         district:'Porto',   specialty:'Verde & Cuidados',            color:'#16a34a', emoji:'🌿' },
-  // Lisboa
-  'EPGB Lisboa':     { name:'EPGB Lisboa',       district:'Lisboa',  specialty:'Gestão & Informática',        color:'#dc2626', emoji:'💻' },
-  'ETPL Lisboa':     { name:'ETPL Lisboa',       district:'Lisboa',  specialty:'Eletrónica & Segurança',      color:'#b45309', emoji:'🔒' },
-  // Coimbra
-  'ETP Coimbra':     { name:'ETP Coimbra',       district:'Coimbra', specialty:'Artes & Acabamentos',         color:'#0891b2', emoji:'🎨' },
-  'EPCV Coimbra':    { name:'EPCV Coimbra',      district:'Coimbra', specialty:'Cuidados & Verde',            color:'#059669', emoji:'👶' },
+  'ETP Aveiro':   { district:'Aveiro',  specialty:'Instalações & Energia',           color:'#1a6ff0', emoji:'⚡' },
+  'ETAP Aveiro':  { district:'Aveiro',  specialty:'Construção & Reparação',           color:'#0d4fc4', emoji:'🔧' },
+  'ETP Porto':    { district:'Porto',   specialty:'Tecnologia & Construção',          color:'#7c3aed', emoji:'🪚' },
+  'EPTLH Porto':  { district:'Porto',   specialty:'Hotelaria & Serviços Domésticos',  color:'#db2777', emoji:'🍳' },
+  'EPVC Gaia':    { district:'Porto',   specialty:'Verde & Cuidados',                 color:'#16a34a', emoji:'🌿' },
+  'EPGB Lisboa':  { district:'Lisboa',  specialty:'Gestão & Informática',             color:'#dc2626', emoji:'💻' },
+  'ETPL Lisboa':  { district:'Lisboa',  specialty:'Eletrónica & Segurança',           color:'#b45309', emoji:'🔒' },
+  'ETP Coimbra':  { district:'Coimbra', specialty:'Artes & Acabamentos',              color:'#0891b2', emoji:'🎨' },
+  'EPCV Coimbra': { district:'Coimbra', specialty:'Cuidados & Verde',                 color:'#059669', emoji:'👶' },
 };
 
-// ── Students — max 2 competências, maioria 1 ─────────────────
-// reviews: array of {author, text, rating, date, clientId?}
+// ── Students ─────────────────────────────────────────────────
+// reviews count is proportional to nServices (~60-80% have a review)
 const STUDENTS = [
   // ── ETP Aveiro (Instalações & Energia) ───────────────────────
-  { id:'s1',  name:'Carlos Oliveira',  school:'ETP Aveiro',    level:'INTERMEDIO', rating:4.7, nServices:18, cats:['canaliza','eletric'],     location:'Aveiro',
-    reviews:[{author:'João M.',text:'Muito profissional e rápido.',rating:5,date:'2026-04-10'},{author:'Ana S.',text:'Resolveu o problema na hora.',rating:4,date:'2026-03-22'}],
-    bio:'Apaixonado por eletricidade e canalização. 18 serviços com excelente feedback.' },
-  { id:'s5',  name:'Rui Marques',      school:'ETP Aveiro',    level:'INTERMEDIO', rating:4.5, nServices:12, cats:['canaliza'],               location:'Ílhavo',
-    reviews:[{author:'Carla M.',text:'Rápido e eficiente.',rating:5,date:'2026-04-05'},{author:'Hugo S.',text:'Bom serviço pelo preço.',rating:4,date:'2026-03-10'}],
-    bio:'Canalizador experiente com boas referências. Respondo rápido.' },
-  { id:'s9',  name:'Tiago Nunes',      school:'ETP Aveiro',    level:'AVANCADO',   rating:4.9, nServices:42, cats:['canaliza'],               location:'Aveiro',
-    reviews:[{author:'Patrícia L.',text:'O melhor que já contratei.',rating:5,date:'2026-04-22'},{author:'Rui A.',text:'Sempre pontual e profissional.',rating:5,date:'2026-04-14'}],
-    bio:'Top prestador em canalização. 42 serviços realizados.' },
-  { id:'s12', name:'Catarina Silva',   school:'ETP Aveiro',    level:'INTERMEDIO', rating:4.5, nServices:11, cats:['informatica'],            location:'Oliveira do Bairro',
-    reviews:[{author:'Nuno B.',text:'Instalou tudo sem problemas.',rating:4,date:'2026-03-25'}],
-    bio:'Programação, instalação de software e suporte técnico.' },
-  { id:'s31', name:'Fábio Nascimento', school:'ETP Aveiro',    level:'BASICO',     rating:4.1, nServices:5,  cats:['eletric'],                location:'Estarreja',
-    reviews:[{author:'Teresa M.',text:'Boa disposição, trabalho correto.',rating:4,date:'2026-04-01'}],
-    bio:'Curso de Instalações Elétricas. Disponível para instalações simples e manutenção.' },
+  { id:'s1', name:'Carlos Oliveira', school:'ETP Aveiro', level:'INTERMEDIO', rating:4.7, nServices:18, acceptProb:0.75, cats:['canaliza','eletric'], location:'Aveiro',
+    bio:'Apaixonado por eletricidade e canalização. 18 serviços com excelente feedback.',
+    reviews:[
+      {author:'João M.',text:'Muito profissional e rápido. Voltaria a contratar.',rating:5,date:'2026-04-10'},
+      {author:'Ana S.',text:'Resolveu o problema de canalização na hora.',rating:4,date:'2026-03-22'},
+      {author:'Rui P.',text:'Instalou quadro elétrico sem complicações.',rating:5,date:'2026-03-05'},
+      {author:'Fernanda L.',text:'Excelente serviço, muito atencioso.',rating:5,date:'2026-02-18'},
+      {author:'Carlos B.',text:'Chegou na hora certa, trabalho limpo.',rating:4,date:'2026-02-01'},
+      {author:'Marisa T.',text:'Pequena reparação elétrica feita com cuidado.',rating:5,date:'2026-01-15'},
+      {author:'Hélder N.',text:'Bom serviço, honesto no preço.',rating:4,date:'2026-01-02'},
+      {author:'Sofia R.',text:'Canalização da cozinha resolvida rapidamente.',rating:5,date:'2025-12-20'},
+      {author:'Pedro V.',text:'Profissional e simpático.',rating:4,date:'2025-12-05'},
+      {author:'Lara F.',text:'Recomendo sem hesitar.',rating:5,date:'2025-11-18'},
+      {author:'Tomás A.',text:'Pontual e eficiente.',rating:5,date:'2025-11-02'},
+      {author:'Vera C.',text:'Ótimo trabalho de instalação.',rating:4,date:'2025-10-15'},
+    ] },
+  { id:'s5', name:'Rui Marques', school:'ETP Aveiro', level:'INTERMEDIO', rating:4.5, nServices:12, acceptProb:0.80, cats:['canaliza'], location:'Ílhavo',
+    bio:'Canalizador experiente com boas referências. Respondo rápido.',
+    reviews:[
+      {author:'Carla M.',text:'Rápido e eficiente.',rating:5,date:'2026-04-05'},
+      {author:'Hugo S.',text:'Bom serviço pelo preço.',rating:4,date:'2026-03-10'},
+      {author:'Diana B.',text:'Torneira trocada em 30 minutos.',rating:5,date:'2026-02-22'},
+      {author:'Nuno G.',text:'Resolveu o cano partido rapidamente.',rating:4,date:'2026-02-05'},
+      {author:'Rita O.',text:'Muito disponível e cordial.',rating:5,date:'2026-01-20'},
+      {author:'Álvaro S.',text:'Serviço correto, sem surpresas.',rating:4,date:'2026-01-08'},
+      {author:'Joana R.',text:'Apareceu na hora e fez o trabalho.',rating:5,date:'2025-12-15'},
+      {author:'Marco N.',text:'Profissional competente.',rating:4,date:'2025-11-28'},
+    ] },
+  { id:'s9', name:'Tiago Nunes', school:'ETP Aveiro', level:'AVANCADO', rating:4.9, nServices:42, acceptProb:0.50, cats:['canaliza'], location:'Aveiro',
+    bio:'Top prestador em canalização. 42 serviços realizados.',
+    reviews:[
+      {author:'Patrícia L.',text:'O melhor canalizador que já contratei, sem dúvida.',rating:5,date:'2026-04-22'},
+      {author:'Rui A.',text:'Sempre pontual e muito profissional.',rating:5,date:'2026-04-14'},
+      {author:'Susana M.',text:'Resolveu problema que outros não conseguiram.',rating:5,date:'2026-04-02'},
+      {author:'Bruno T.',text:'Qualidade de trabalho excecional.',rating:5,date:'2026-03-25'},
+      {author:'Elsa F.',text:'Recomendado por toda a gente, e com razão.',rating:5,date:'2026-03-14'},
+      {author:'Gonçalo P.',text:'Chegou, viu e resolveu. Impressionante.',rating:5,date:'2026-03-02'},
+      {author:'Inês B.',text:'Trabalho impecável como sempre.',rating:5,date:'2026-02-18'},
+      {author:'Jorge C.',text:'Profissionalismo de alto nível.',rating:4,date:'2026-02-04'},
+      {author:'Marta V.',text:'Excelente serviço de canalização.',rating:5,date:'2026-01-22'},
+      {author:'Paulo R.',text:'Muito bom, voltarei a contratar.',rating:5,date:'2026-01-09'},
+      {author:'Célia M.',text:'Rápido e muito cuidadoso.',rating:5,date:'2025-12-28'},
+      {author:'Dinis A.',text:'Top serviço em tudo.',rating:5,date:'2025-12-14'},
+      {author:'Filipa T.',text:'Resolução rápida e eficaz.',rating:4,date:'2025-11-30'},
+      {author:'Henrique S.',text:'Ótimo resultado, casa sem avarias.',rating:5,date:'2025-11-16'},
+      {author:'Leonor B.',text:'Um dos melhores que conheço.',rating:5,date:'2025-11-01'},
+      {author:'Miguel C.',text:'Trabalho primoroso.',rating:5,date:'2025-10-17'},
+      {author:'Nádia F.',text:'Voltaria a contratar de olhos fechados.',rating:5,date:'2025-10-03'},
+      {author:'Olga M.',text:'Canalização nova a funcionar na perfeição.',rating:5,date:'2025-09-19'},
+      {author:'Quim R.',text:'Profissional de confiança.',rating:4,date:'2025-09-05'},
+      {author:'Rosa N.',text:'Trabalho limpo e cuidadoso.',rating:5,date:'2025-08-22'},
+      {author:'Sandro L.',text:'Excelente! Muito satisfeita.',rating:5,date:'2025-08-08'},
+      {author:'Tânia P.',text:'Super competente e simpático.',rating:5,date:'2025-07-25'},
+      {author:'Ulisses C.',text:'Fez um trabalho que durou anos.',rating:5,date:'2025-07-11'},
+      {author:'Vera S.',text:'Muito recomendado pelo bairro todo.',rating:5,date:'2025-06-27'},
+    ] },
+  { id:'s12', name:'Catarina Silva', school:'ETP Aveiro', level:'INTERMEDIO', rating:4.5, nServices:11, acceptProb:0.80, cats:['informatica'], location:'Oliveira do Bairro',
+    bio:'Programação, instalação de software e suporte técnico.',
+    reviews:[
+      {author:'Nuno B.',text:'Instalou tudo sem problemas.',rating:4,date:'2026-03-25'},
+      {author:'Olga T.',text:'Configurou o router e o NAS.',rating:5,date:'2026-03-08'},
+      {author:'Paulo F.',text:'Suporte técnico rápido e eficaz.',rating:4,date:'2026-02-20'},
+      {author:'Iva C.',text:'Resolveu vírus no PC em pouco tempo.',rating:5,date:'2026-02-04'},
+      {author:'Jorge M.',text:'Formatou e configurou portátil novo.',rating:4,date:'2026-01-18'},
+      {author:'Kátia S.',text:'Muito simpática e competente.',rating:5,date:'2026-01-05'},
+      {author:'Laura P.',text:'Instalou impressora de rede.',rating:4,date:'2025-12-22'},
+    ] },
+  { id:'s31', name:'Fábio Nascimento', school:'ETP Aveiro', level:'BASICO', rating:4.1, nServices:5, acceptProb:0.88, cats:['eletric'], location:'Estarreja',
+    bio:'Curso de Instalações Elétricas. Disponível para instalações simples e manutenção.',
+    reviews:[
+      {author:'Teresa M.',text:'Boa disposição, trabalho correto.',rating:4,date:'2026-04-01'},
+      {author:'Ulisses B.',text:'Tomada nova instalada sem problemas.',rating:4,date:'2026-03-10'},
+      {author:'Vera L.',text:'Reparou o interruptor rapidamente.',rating:4,date:'2026-02-15'},
+    ] },
 
   // ── ETAP Aveiro (Construção & Reparação) ─────────────────────
-  { id:'s26', name:'Hélder Martins',   school:'ETAP Aveiro',   level:'INTERMEDIO', rating:4.6, nServices:17, cats:['soldadura'],              location:'Estarreja',
-    reviews:[{author:'Paulo R.',text:'Portão novo ficou excelente.',rating:5,date:'2026-04-04'}],
-    bio:'Soldador com certificação. Estruturas metálicas, portões e reparações.' },
-  { id:'s21', name:'Sara Baptista',    school:'ETAP Aveiro',   level:'BASICO',     rating:4.2, nServices:7,  cats:['pintura'],                location:'Ovar',
-    reviews:[{author:'Hugo M.',text:'Bom trabalho!',rating:4,date:'2026-03-20'}],
-    bio:'Pintora disponível para interiores e exteriores.' },
-  { id:'s32', name:'Afonso Correia',   school:'ETAP Aveiro',   level:'INTERMEDIO', rating:4.4, nServices:9,  cats:['manutencao'],             location:'Aveiro',
-    reviews:[{author:'Sónia P.',text:'Resolveu vários pequenos problemas em casa.',rating:4,date:'2026-03-30'}],
-    bio:'Manutenção geral de habitações. Especializado no curso de Construção Civil.' },
-  { id:'s33', name:'Mara Figueiredo',  school:'ETAP Aveiro',   level:'BASICO',     rating:4.0, nServices:4,  cats:['reparacao'],              location:'Águeda',
-    reviews:[{author:'Bernardo L.',text:'Reparou a torneira sem complicações.',rating:4,date:'2026-02-15'}],
-    bio:'Curso de Construção e Manutenção. Disponível para pequenas reparações domésticas.' },
+  { id:'s26', name:'Hélder Martins', school:'ETAP Aveiro', level:'INTERMEDIO', rating:4.6, nServices:17, acceptProb:0.74, cats:['soldadura'], location:'Estarreja',
+    bio:'Soldador com certificação. Estruturas metálicas, portões e reparações.',
+    reviews:[
+      {author:'Paulo R.',text:'Portão novo ficou excelente.',rating:5,date:'2026-04-04'},
+      {author:'Xana F.',text:'Soldadura perfeita na grade da janela.',rating:5,date:'2026-03-18'},
+      {author:'Yuri C.',text:'Trabalho sólido e durável.',rating:4,date:'2026-03-01'},
+      {author:'Zé M.',text:'Reparou estrutura metálica da garagem.',rating:5,date:'2026-02-14'},
+      {author:'Ana V.',text:'Bom trabalho, preço justo.',rating:4,date:'2026-02-01'},
+      {author:'Beto S.',text:'Profissional confiável.',rating:5,date:'2026-01-15'},
+      {author:'Cláudia R.',text:'Portão corredera instalado.',rating:4,date:'2026-01-03'},
+      {author:'Dário N.',text:'Soldou cano de ferro sem falhas.',rating:5,date:'2025-12-20'},
+      {author:'Eduarda T.',text:'Muito satisfeita com o resultado.',rating:4,date:'2025-12-05'},
+      {author:'Filipe B.',text:'Reparação de escadas metálicas perfeita.',rating:5,date:'2025-11-18'},
+    ] },
+  { id:'s21', name:'Sara Baptista', school:'ETAP Aveiro', level:'BASICO', rating:4.2, nServices:7, acceptProb:0.88, cats:['pintura'], location:'Ovar',
+    bio:'Pintora disponível para interiores e exteriores.',
+    reviews:[
+      {author:'Hugo M.',text:'Bom trabalho!',rating:4,date:'2026-03-20'},
+      {author:'Isabel F.',text:'Quarto pintado com cuidado.',rating:4,date:'2026-03-05'},
+      {author:'Jacinto P.',text:'Fez o trabalho no tempo combinado.',rating:4,date:'2026-02-18'},
+      {author:'Kika S.',text:'Resultado agradável.',rating:5,date:'2026-02-01'},
+      {author:'Lena A.',text:'Boa pintora para trabalhos básicos.',rating:4,date:'2026-01-15'},
+    ] },
+  { id:'s32', name:'Afonso Correia', school:'ETAP Aveiro', level:'INTERMEDIO', rating:4.4, nServices:9, acceptProb:0.79, cats:['manutencao'], location:'Aveiro',
+    bio:'Manutenção geral de habitações. Especializado no curso de Construção Civil.',
+    reviews:[
+      {author:'Sónia P.',text:'Resolveu vários pequenos problemas em casa.',rating:4,date:'2026-03-30'},
+      {author:'Tiago F.',text:'Manutenção geral muito bem feita.',rating:5,date:'2026-03-14'},
+      {author:'Ursula M.',text:'Reparou porta e janela.',rating:4,date:'2026-02-27'},
+      {author:'Vasco C.',text:'Trabalho limpo e cuidadoso.',rating:4,date:'2026-02-10'},
+      {author:'Wanda S.',text:'Polivalente e eficiente.',rating:5,date:'2026-01-25'},
+      {author:'Xavier R.',text:'Resolveu infiltração.',rating:4,date:'2026-01-10'},
+    ] },
+  { id:'s33', name:'Mara Figueiredo', school:'ETAP Aveiro', level:'BASICO', rating:4.0, nServices:4, acceptProb:0.90, cats:['reparacao'], location:'Águeda',
+    bio:'Curso de Construção e Manutenção. Disponível para pequenas reparações domésticas.',
+    reviews:[
+      {author:'Bernardo L.',text:'Reparou a torneira sem complicações.',rating:4,date:'2026-02-15'},
+      {author:'Carmo P.',text:'Trabalho simples feito corretamente.',rating:4,date:'2026-01-28'},
+    ] },
 
   // ── ETP Porto (Tecnologia & Construção) ──────────────────────
-  { id:'s8',  name:'Marta Alves',      school:'ETP Porto',     level:'INTERMEDIO', rating:4.6, nServices:15, cats:['carpint','eletric'],      location:'Porto',
-    reviews:[{author:'David P.',text:'Muito competente!',rating:5,date:'2026-04-08'},{author:'Inês G.',text:'Ficou tudo perfeito.',rating:4,date:'2026-03-30'}],
-    bio:'Trabalho bem em carpintaria e eletricidade. Gosto de desafios.' },
-  { id:'s22', name:'Luís Teixeira',    school:'ETP Porto',     level:'AVANCADO',   rating:4.9, nServices:45, cats:['carpint','montagem'],     location:'Gondomar',
-    reviews:[{author:'Ana G.',text:'Móvel ficou lindo!',rating:5,date:'2026-04-23'},{author:'Pedro L.',text:'Profissional de excelência.',rating:5,date:'2026-04-10'}],
-    bio:'Marceneiro com 45 serviços. Desde reparações simples a peças personalizadas.' },
-  { id:'s28', name:'Vasco Cunha',      school:'ETP Porto',     level:'AVANCADO',   rating:4.8, nServices:33, cats:['canaliza','climatizacao'], location:'Paredes',
-    reviews:[{author:'Beatriz F.',text:'Excelente trabalho!',rating:5,date:'2026-04-24'},{author:'Tiago A.',text:'Muito eficiente.',rating:5,date:'2026-04-13'}],
-    bio:'Técnico especializado em canalização e climatização.' },
-  { id:'s34', name:'Simão Barbosa',    school:'ETP Porto',     level:'BASICO',     rating:4.0, nServices:3,  cats:['montagem'],               location:'Maia',
-    reviews:[{author:'Filomena S.',text:'Montou cama e roupeiro.',rating:4,date:'2026-03-05'}],
-    bio:'Curso de Tecnologia e Construção. Montagem de mobiliário e prateleiras.' },
-  { id:'s35', name:'Inês Carvalho',    school:'ETP Porto',     level:'INTERMEDIO', rating:4.5, nServices:10, cats:['eletric'],                location:'Vila Nova de Gaia',
-    reviews:[{author:'Rui M.',text:'Instalou tomadas e disjuntor sem problemas.',rating:5,date:'2026-04-02'}],
-    bio:'Eletricista em formação, com foco em instalações domésticas.' },
+  { id:'s8', name:'Marta Alves', school:'ETP Porto', level:'INTERMEDIO', rating:4.6, nServices:15, acceptProb:0.72, cats:['carpint','eletric'], location:'Porto',
+    bio:'Trabalho bem em carpintaria e eletricidade. Gosto de desafios.',
+    reviews:[
+      {author:'David P.',text:'Muito competente! Móveis montados na perfeição.',rating:5,date:'2026-04-08'},
+      {author:'Inês G.',text:'Ficou tudo perfeito, instalação elétrica impecável.',rating:4,date:'2026-03-30'},
+      {author:'Jorge M.',text:'Carpintaria de qualidade.',rating:5,date:'2026-03-15'},
+      {author:'Karina F.',text:'Resolveu avaria elétrica rapidamente.',rating:4,date:'2026-02-28'},
+      {author:'Lourenço B.',text:'Muito profissional e organizada.',rating:5,date:'2026-02-12'},
+      {author:'Madalena S.',text:'Excelente trabalho.',rating:5,date:'2026-01-25'},
+      {author:'Narciso T.',text:'Tomadas e prateleiras de madeira perfeitas.',rating:4,date:'2026-01-10'},
+      {author:'Odete R.',text:'Recomendo muito.',rating:5,date:'2025-12-28'},
+      {author:'Pedro A.',text:'Carpintaria bem acabada.',rating:4,date:'2025-12-12'},
+    ] },
+  { id:'s22', name:'Luís Teixeira', school:'ETP Porto', level:'AVANCADO', rating:4.9, nServices:45, acceptProb:0.50, cats:['carpint','montagem'], location:'Gondomar',
+    bio:'Marceneiro com 45 serviços. Desde reparações simples a peças personalizadas.',
+    reviews:[
+      {author:'Ana G.',text:'Móvel feito à medida ficou incrível!',rating:5,date:'2026-04-23'},
+      {author:'Pedro L.',text:'Profissional de excelência absoluta.',rating:5,date:'2026-04-10'},
+      {author:'Quirina F.',text:'Roupeiro embutido perfeito.',rating:5,date:'2026-03-28'},
+      {author:'Rafael M.',text:'O melhor marceneiro que já contratei.',rating:5,date:'2026-03-15'},
+      {author:'Salomé T.',text:'Mesa de jantar à medida. Fantástica.',rating:5,date:'2026-03-02'},
+      {author:'Tobias S.',text:'Qualidade premium em tudo.',rating:5,date:'2026-02-18'},
+      {author:'Ulrica P.',text:'Trabalho primoroso e detalhado.',rating:5,date:'2026-02-04'},
+      {author:'Vanessa B.',text:'Cozinha nova montada com perfeição.',rating:5,date:'2026-01-22'},
+      {author:'Walter C.',text:'Armários robustos e bonitos.',rating:4,date:'2026-01-09'},
+      {author:'Xuxa F.',text:'Serviço impecável.',rating:5,date:'2025-12-27'},
+      {author:'Yolanda S.',text:'Recomendo a toda a gente.',rating:5,date:'2025-12-13'},
+      {author:'Zara M.',text:'Excelente resultado, muito contente.',rating:5,date:'2025-11-29'},
+      {author:'Alberto N.',text:'Peças personalizadas de alta qualidade.',rating:5,date:'2025-11-15'},
+      {author:'Benedita F.',text:'Muito satisfeita com a cozinha.',rating:5,date:'2025-11-01'},
+      {author:'César A.',text:'Volta sempre que preciso.',rating:4,date:'2025-10-18'},
+      {author:'Dolores M.',text:'Marceneiro de excelência.',rating:5,date:'2025-10-04'},
+      {author:'Estela P.',text:'Móvel de casa de banho perfeito.',rating:5,date:'2025-09-20'},
+      {author:'Florentino C.',text:'Trabalho de artesão.',rating:5,date:'2025-09-06'},
+      {author:'Graça B.',text:'Muito caprichoso e responsável.',rating:5,date:'2025-08-23'},
+      {author:'Hernâni S.',text:'Qualidade inigualável.',rating:5,date:'2025-08-09'},
+    ] },
+  { id:'s28', name:'Vasco Cunha', school:'ETP Porto', level:'AVANCADO', rating:4.8, nServices:33, acceptProb:0.57, cats:['canaliza','climatizacao'], location:'Paredes',
+    bio:'Técnico especializado em canalização e climatização.',
+    reviews:[
+      {author:'Beatriz F.',text:'Excelente trabalho de climatização!',rating:5,date:'2026-04-24'},
+      {author:'Tiago A.',text:'Muito eficiente na instalação do AC.',rating:5,date:'2026-04-13'},
+      {author:'Conceição M.',text:'Canalização nova toda impecável.',rating:5,date:'2026-04-01'},
+      {author:'Domingos S.',text:'Reparou AC em menos de 1h.',rating:4,date:'2026-03-20'},
+      {author:'Eulália P.',text:'Profissional e pontual.',rating:5,date:'2026-03-08'},
+      {author:'Fabrício N.',text:'Instalação de aquecimento central.',rating:5,date:'2026-02-23'},
+      {author:'Gabriela T.',text:'Muito bom trabalho.',rating:5,date:'2026-02-10'},
+      {author:'Idalina B.',text:'Excelente técnico.',rating:4,date:'2026-01-27'},
+      {author:'Jacinto R.',text:'AC funciona na perfeição.',rating:5,date:'2026-01-14'},
+      {author:'Kátia M.',text:'Canalização do WC resolvida.',rating:5,date:'2026-01-02'},
+      {author:'Lúcio F.',text:'Serviço de qualidade.',rating:4,date:'2025-12-20'},
+      {author:'Marcelino S.',text:'Voltaria a contratar sem hesitar.',rating:5,date:'2025-12-06'},
+      {author:'Natália P.',text:'Técnico de confiança.',rating:5,date:'2025-11-22'},
+      {author:'Octávio M.',text:'Bom trabalho nas tubagens.',rating:4,date:'2025-11-08'},
+      {author:'Palmira C.',text:'Muito satisfeita.',rating:5,date:'2025-10-25'},
+    ] },
+  { id:'s34', name:'Simão Barbosa', school:'ETP Porto', level:'BASICO', rating:4.0, nServices:3, acceptProb:0.90, cats:['montagem'], location:'Maia',
+    bio:'Curso de Tecnologia e Construção. Montagem de mobiliário e prateleiras.',
+    reviews:[
+      {author:'Filomena S.',text:'Montou cama e roupeiro.',rating:4,date:'2026-03-05'},
+      {author:'Gaspar M.',text:'Montagem de estantes feita bem.',rating:4,date:'2026-02-10'},
+    ] },
+  { id:'s35', name:'Inês Carvalho', school:'ETP Porto', level:'INTERMEDIO', rating:4.5, nServices:10, acceptProb:0.79, cats:['eletric'], location:'Vila Nova de Gaia',
+    bio:'Eletricista em formação, com foco em instalações domésticas.',
+    reviews:[
+      {author:'Rui M.',text:'Instalou tomadas e disjuntor sem problemas.',rating:5,date:'2026-04-02'},
+      {author:'Sónia B.',text:'Trabalhou de forma organizada.',rating:4,date:'2026-03-18'},
+      {author:'Tomás F.',text:'Muito competente para a experiência.',rating:5,date:'2026-03-02'},
+      {author:'Úrsula M.',text:'Instalação limpa e segura.',rating:4,date:'2026-02-15'},
+      {author:'Valentim S.',text:'Excelente instalação elétrica.',rating:5,date:'2026-01-30'},
+      {author:'Wanda C.',text:'Boa profissional.',rating:4,date:'2026-01-15'},
+    ] },
 
   // ── EPTLH Porto (Hotelaria & Serviços Domésticos) ────────────
-  { id:'s16', name:'Diogo Lemos',      school:'EPTLH Porto',   level:'AVANCADO',   rating:4.9, nServices:31, cats:['cozinhar'],               location:'Porto',
-    reviews:[{author:'Ana M.',text:'Jantar incrível!',rating:5,date:'2026-04-21'},{author:'Pedro S.',text:'Comida deliciosa e bem apresentada.',rating:5,date:'2026-04-11'}],
-    bio:'Chef em formação. Refeições do dia-a-dia ou jantares especiais.' },
-  { id:'s23', name:'Patrícia Sousa',   school:'EPTLH Porto',   level:'INTERMEDIO', rating:4.4, nServices:10, cats:['cozinhar','babysitting'],  location:'Valongo',
-    reviews:[{author:'Diana C.',text:'Os filhos adoram-na!',rating:4,date:'2026-03-22'}],
-    bio:'Cozinheira e babysitter. Adoro trabalhar com crianças e cozinhar refeições saudáveis.' },
-  { id:'s36', name:'Tomás Andrade',    school:'EPTLH Porto',   level:'BASICO',     rating:4.1, nServices:6,  cats:['limpeza'],                location:'Matosinhos',
-    reviews:[{author:'Celeste R.',text:'Limpeza cuidada e eficiente.',rating:4,date:'2026-03-18'}],
-    bio:'Curso de Serviços Domésticos. Limpeza geral e organização de espaços.' },
-  { id:'s37', name:'Madalena Cruz',    school:'EPTLH Porto',   level:'INTERMEDIO', rating:4.6, nServices:14, cats:['cozinhar'],               location:'Porto',
-    reviews:[{author:'Nélson S.',text:'Cozinha caseira deliciosa!',rating:5,date:'2026-04-07'},{author:'Lúcia F.',text:'Pontual e simpática.',rating:4,date:'2026-03-25'}],
-    bio:'Especializada em cozinha portuguesa tradicional. Preparação de refeições e sobremesas.' },
+  { id:'s16', name:'Diogo Lemos', school:'EPTLH Porto', level:'AVANCADO', rating:4.9, nServices:31, acceptProb:0.52, cats:['cozinhar'], location:'Porto',
+    bio:'Chef em formação. Refeições do dia-a-dia ou jantares especiais.',
+    reviews:[
+      {author:'Ana M.',text:'Jantar incrível, todos os convidados adoraram!',rating:5,date:'2026-04-21'},
+      {author:'Pedro S.',text:'Comida deliciosa e muito bem apresentada.',rating:5,date:'2026-04-11'},
+      {author:'Carina F.',text:'Fez o jantar de aniversário perfeito.',rating:5,date:'2026-03-29'},
+      {author:'Dinis T.',text:'Criatividade e sabor a nível profissional.',rating:5,date:'2026-03-16'},
+      {author:'Emília B.',text:'Surpreendeu todos com a refeição.',rating:5,date:'2026-03-03'},
+      {author:'Fábio R.',text:'Chef de talento indiscutível.',rating:5,date:'2026-02-19'},
+      {author:'Graça N.',text:'Voltarei a contratar com certeza.',rating:5,date:'2026-02-06'},
+      {author:'Hélio M.',text:'Cozinha de restaurante em casa.',rating:4,date:'2026-01-23'},
+      {author:'Ivone F.',text:'Muito bom jantar de família.',rating:5,date:'2026-01-10'},
+      {author:'Jacinto S.',text:'Refeições da semana todas deliciosas.',rating:5,date:'2025-12-28'},
+      {author:'Keila A.',text:'Excelente chef.',rating:5,date:'2025-12-14'},
+      {author:'Lourdes B.',text:'Comida caseira de excelência.',rating:4,date:'2025-12-01'},
+      {author:'Mário C.',text:'Jantar de Natal inesquecível.',rating:5,date:'2025-11-17'},
+      {author:'Nélida F.',text:'Muito talentoso.',rating:5,date:'2025-11-03'},
+    ] },
+  { id:'s23', name:'Patrícia Sousa', school:'EPTLH Porto', level:'INTERMEDIO', rating:4.4, nServices:10, acceptProb:0.76, cats:['cozinhar','babysitting'], location:'Valongo',
+    bio:'Cozinheira e babysitter. Adoro trabalhar com crianças e cozinhar refeições saudáveis.',
+    reviews:[
+      {author:'Diana C.',text:'Os filhos adoram-na!',rating:4,date:'2026-03-22'},
+      {author:'Elvira M.',text:'Refeições saudáveis e saborosas.',rating:5,date:'2026-03-08'},
+      {author:'Félix B.',text:'Tomou conta das crianças com carinho.',rating:4,date:'2026-02-22'},
+      {author:'Graziela P.',text:'Muito responsável.',rating:5,date:'2026-02-05'},
+      {author:'Horácio S.',text:'Bom jantar semanal.',rating:4,date:'2026-01-20'},
+      {author:'Iris M.',text:'Crianças bem entretidas.',rating:4,date:'2026-01-07'},
+    ] },
 
   // ── EPVC Gaia (Verde & Cuidados) ─────────────────────────────
-  { id:'s7',  name:'João Pereira',     school:'EPVC Gaia',     level:'BASICO',     rating:4.0, nServices:4,  cats:['mudancas'],               location:'Vila Nova de Gaia',
-    reviews:[{author:'Filipe R.',text:'Cuidadoso com os móveis.',rating:4,date:'2026-02-20'}],
-    bio:'Disponível para ajudas em mudanças. Pontual e cuidadoso.' },
-  { id:'s27', name:'Joana Azevedo',    school:'EPVC Gaia',     level:'BASICO',     rating:4.3, nServices:6,  cats:['limpeza','petsitting'],   location:'Espinho',
-    reviews:[{author:'Marco S.',text:'Ótima com o meu gato.',rating:4,date:'2026-03-16'}],
-    bio:'Apaixonada por animais e pelo trabalho bem feito.' },
-  { id:'s38', name:'Rodrigo Pinto',    school:'EPVC Gaia',     level:'INTERMEDIO', rating:4.5, nServices:13, cats:['jardinagem'],             location:'Gondomar',
-    reviews:[{author:'Amélia C.',text:'Jardim transformado! Recomendo.',rating:5,date:'2026-04-14'},{author:'Rúben A.',text:'Bom trabalho na poda.',rating:4,date:'2026-03-28'}],
-    bio:'Técnico de Jardinagem e Espaços Verdes. Projeto, plantação e manutenção.' },
-  { id:'s39', name:'Leonor Vieira',    school:'EPVC Gaia',     level:'BASICO',     rating:4.2, nServices:5,  cats:['petsitting'],             location:'Vila Nova de Gaia',
-    reviews:[{author:'Dora M.',text:'Ficou ótimo com os meus dois gatos.',rating:4,date:'2026-03-10'}],
-    bio:'Curso de Cuidados Veterinários. Petsitting responsável e carinhoso.' },
+  { id:'s3', name:'Miguel Santos', school:'EPVC Gaia', level:'BASICO', rating:4.2, nServices:6, acceptProb:0.90, cats:['limpeza'], location:'Matosinhos',
+    bio:'Disponível para serviços de limpeza. Esforçado e rápido.',
+    reviews:[
+      {author:'Marta F.',text:'Fez um bom trabalho!',rating:4,date:'2026-03-15'},
+      {author:'Nuno P.',text:'Casa ficou limpa.',rating:4,date:'2026-02-28'},
+      {author:'Olinda C.',text:'Trabalhou com afinco.',rating:4,date:'2026-02-10'},
+      {author:'Pompeu M.',text:'Resultado satisfatório.',rating:4,date:'2026-01-24'},
+    ] },
+  { id:'s36', name:'Laura Esteves', school:'EPVC Gaia', level:'INTERMEDIO', rating:4.5, nServices:14, acceptProb:0.75, cats:['jardinagem','limpeza'], location:'Espinho',
+    bio:'Jardinagem e limpeza doméstica. Cuidadosa e pontual.',
+    reviews:[
+      {author:'Quitéria M.',text:'Jardim ficou impecável.',rating:5,date:'2026-04-15'},
+      {author:'Ricardo S.',text:'Limpeza geral da casa muito boa.',rating:4,date:'2026-03-30'},
+      {author:'Samira B.',text:'Muito cuidadosa com as plantas.',rating:5,date:'2026-03-14'},
+      {author:'Teodora F.',text:'Casa e jardim em ordem.',rating:4,date:'2026-02-27'},
+      {author:'Ulisses P.',text:'Bom serviço semanal.',rating:5,date:'2026-02-12'},
+      {author:'Valentina C.',text:'Recomendo para jardinagem.',rating:4,date:'2026-01-27'},
+      {author:'Waldemar S.',text:'Limpeza pós-obra muito bem feita.',rating:5,date:'2026-01-12'},
+      {author:'Xénia M.',text:'Pontual e trabalhadeira.',rating:4,date:'2025-12-28'},
+    ] },
+  { id:'s37', name:'Duarte Melo', school:'EPVC Gaia', level:'BASICO', rating:4.0, nServices:4, acceptProb:0.89, cats:['petsitting'], location:'Vila Nova de Gaia',
+    bio:'Curso de Veterinária Preventiva. Petsitting responsável e carinhoso.',
+    reviews:[
+      {author:'Dora M.',text:'Ficou ótimo com os meus dois gatos.',rating:4,date:'2026-03-10'},
+      {author:'Ema F.',text:'Cão bem tratado e feliz.',rating:4,date:'2026-02-15'},
+    ] },
 
   // ── EPGB Lisboa (Gestão & Informática) ───────────────────────
-  { id:'s2',  name:'Ana Ferreira',     school:'EPGB Lisboa',   level:'AVANCADO',   rating:4.9, nServices:34, cats:['eletric','carpint'],      location:'Lisboa',
-    reviews:[{author:'Pedro C.',text:'Excelente trabalho, muito recomendada!',rating:5,date:'2026-04-18'},{author:'Rita L.',text:'Pontual e cuidadosa.',rating:5,date:'2026-04-01'}],
-    bio:'Especialista em carpintaria e instalações elétricas. Rigorosa e pontual.' },
-  { id:'s11', name:'Pedro Gomes',      school:'EPGB Lisboa',   level:'AVANCADO',   rating:4.8, nServices:23, cats:['informatica','seguranca'], location:'Oeiras',
-    reviews:[{author:'Sandra C.',text:'Resolveu um problema difícil rapidamente.',rating:5,date:'2026-04-16'},{author:'Marco L.',text:'Muito profissional.',rating:5,date:'2026-04-02'}],
-    bio:'Técnico de informática especializado em redes e reparação de hardware.' },
-  { id:'s25', name:'Filipa Moreira',   school:'EPGB Lisboa',   level:'AVANCADO',   rating:4.7, nServices:22, cats:['informatica','seguranca'], location:'Amadora',
-    reviews:[{author:'André B.',text:'Redes configuradas na perfeição.',rating:5,date:'2026-04-13'},{author:'Luísa C.',text:'Muito profissional.',rating:4,date:'2026-03-29'}],
-    bio:'Técnica de redes e segurança informática. Wi-fi, câmaras e suporte IT.' },
-  { id:'s40', name:'Gonçalo Neto',     school:'EPGB Lisboa',   level:'INTERMEDIO', rating:4.4, nServices:8,  cats:['informatica'],            location:'Loures',
-    reviews:[{author:'Virgínia C.',text:'Configurou o portátil sem problemas.',rating:4,date:'2026-03-20'}],
-    bio:'Curso de Gestão de Sistemas Informáticos. Suporte técnico e instalação de software.' },
-  { id:'s41', name:'Beatriz Campos',   school:'EPGB Lisboa',   level:'BASICO',     rating:4.0, nServices:3,  cats:['outros'],                 location:'Lisboa',
-    reviews:[{author:'Alberto S.',text:'Ajudou com organização do escritório.',rating:4,date:'2026-02-25'}],
-    bio:'Curso de Gestão. Disponível para serviços de organização e apoio administrativo.' },
+  { id:'s2', name:'Ana Ferreira', school:'EPGB Lisboa', level:'AVANCADO', rating:4.9, nServices:34, acceptProb:0.55, cats:['eletric','carpint'], location:'Lisboa',
+    bio:'Especialista em carpintaria e instalações elétricas. Rigorosa e pontual.',
+    reviews:[
+      {author:'Pedro C.',text:'Excelente trabalho, muito recomendada!',rating:5,date:'2026-04-18'},
+      {author:'Rita L.',text:'Pontual e cuidadosa em tudo.',rating:5,date:'2026-04-01'},
+      {author:'Sandro M.',text:'Instalação elétrica de topo.',rating:5,date:'2026-03-19'},
+      {author:'Tânia B.',text:'Carpintaria precisa e elegante.',rating:5,date:'2026-03-05'},
+      {author:'Ugo F.',text:'Armário novo construído à medida.',rating:5,date:'2026-02-20'},
+      {author:'Vilma S.',text:'Trabalho impecável como esperado.',rating:5,date:'2026-02-06'},
+      {author:'Waldo C.',text:'Muito competente.',rating:4,date:'2026-01-23'},
+      {author:'Xana R.',text:'Quadro elétrico novo perfeito.',rating:5,date:'2026-01-10'},
+      {author:'Yara M.',text:'Uma das melhores técnicas.',rating:5,date:'2025-12-27'},
+      {author:'Zilda F.',text:'Carpintaria de luxo.',rating:5,date:'2025-12-13'},
+      {author:'Amadeu S.',text:'Recomendo 100%.',rating:5,date:'2025-11-29'},
+      {author:'Belmira C.',text:'Rígida na qualidade.',rating:5,date:'2025-11-15'},
+      {author:'Caetano M.',text:'Instalação elétrica impecável.',rating:4,date:'2025-11-01'},
+      {author:'Delfina B.',text:'Muito satisfeita.',rating:5,date:'2025-10-18'},
+      {author:'Ernesto F.',text:'Perfeição no trabalho.',rating:5,date:'2025-10-04'},
+    ] },
+  { id:'s11', name:'Pedro Gomes', school:'EPGB Lisboa', level:'AVANCADO', rating:4.8, nServices:23, acceptProb:0.58, cats:['informatica','seguranca'], location:'Oeiras',
+    bio:'Técnico de informática especializado em redes e reparação de hardware.',
+    reviews:[
+      {author:'Sandra C.',text:'Resolveu um problema difícil rapidamente.',rating:5,date:'2026-04-16'},
+      {author:'Marco L.',text:'Muito profissional e competente.',rating:5,date:'2026-04-02'},
+      {author:'Natasha B.',text:'Rede doméstica configurada na perfeição.',rating:5,date:'2026-03-20'},
+      {author:'Oscar M.',text:'Reparou computador que ninguém conseguia.',rating:5,date:'2026-03-06'},
+      {author:'Paulina F.',text:'Câmaras instaladas sem falhas.',rating:4,date:'2026-02-21'},
+      {author:'Quirino S.',text:'Muito bom suporte técnico.',rating:5,date:'2026-02-07'},
+      {author:'Rosário M.',text:'Wi-fi novo muito melhor.',rating:5,date:'2026-01-24'},
+      {author:'Sebastião F.',text:'Trabalho de grande qualidade.',rating:4,date:'2026-01-11'},
+      {author:'Telma B.',text:'Recomendado por toda a gente.',rating:5,date:'2025-12-28'},
+      {author:'Ulisses M.',text:'Profissional de topo.',rating:5,date:'2025-12-14'},
+      {author:'Vitória C.',text:'Sistemas de segurança impecáveis.',rating:5,date:'2025-11-30'},
+      {author:'Xavier S.',text:'Muito eficiente.',rating:4,date:'2025-11-16'},
+    ] },
+  { id:'s25', name:'Filipa Moreira', school:'EPGB Lisboa', level:'AVANCADO', rating:4.7, nServices:22, acceptProb:0.63, cats:['informatica','seguranca'], location:'Amadora',
+    bio:'Técnica de redes e segurança informática. Wi-fi, câmaras e suporte IT.',
+    reviews:[
+      {author:'André B.',text:'Redes configuradas na perfeição.',rating:5,date:'2026-04-13'},
+      {author:'Luísa C.',text:'Muito profissional e eficiente.',rating:4,date:'2026-03-29'},
+      {author:'Mauro F.',text:'Sistema de câmaras novo e funcional.',rating:5,date:'2026-03-15'},
+      {author:'Nádia S.',text:'Wi-fi rápido e estável.',rating:5,date:'2026-03-01'},
+      {author:'Osvaldo B.',text:'Segurança informática reforçada.',rating:4,date:'2026-02-16'},
+      {author:'Palmira M.',text:'Excelente técnica.',rating:5,date:'2026-02-02'},
+      {author:'Quintino F.',text:'Trabalho de grande qualidade.',rating:4,date:'2026-01-19'},
+      {author:'Rosinda S.',text:'NAS configurado na perfeição.',rating:5,date:'2026-01-06'},
+      {author:'Sílvio B.',text:'Resolução rápida.',rating:4,date:'2025-12-23'},
+      {author:'Teodolinda M.',text:'Câmaras e alarme instalados.',rating:5,date:'2025-12-09'},
+    ] },
+  { id:'s40', name:'Gonçalo Neto', school:'EPGB Lisboa', level:'INTERMEDIO', rating:4.4, nServices:8, acceptProb:0.81, cats:['informatica'], location:'Loures',
+    bio:'Curso de Gestão de Sistemas Informáticos. Suporte técnico e instalação de software.',
+    reviews:[
+      {author:'Virgínia C.',text:'Configurou o portátil sem problemas.',rating:4,date:'2026-03-20'},
+      {author:'Walter M.',text:'Formatou o PC e ficou rápido.',rating:4,date:'2026-03-04'},
+      {author:'Xana S.',text:'Instalou o Office sem problemas.',rating:4,date:'2026-02-17'},
+      {author:'Yasmin B.',text:'Suporte simpático e eficaz.',rating:5,date:'2026-02-01'},
+      {author:'Zacarias F.',text:'Bom trabalho técnico.',rating:4,date:'2026-01-16'},
+    ] },
+  { id:'s41', name:'Beatriz Campos', school:'EPGB Lisboa', level:'BASICO', rating:4.0, nServices:3, acceptProb:0.90, cats:['outros'], location:'Lisboa',
+    bio:'Curso de Gestão. Disponível para serviços de organização e apoio administrativo.',
+    reviews:[
+      {author:'Alberto S.',text:'Ajudou com organização do escritório.',rating:4,date:'2026-02-25'},
+      {author:'Bruna M.',text:'Simpática e organizada.',rating:4,date:'2026-02-05'},
+    ] },
 
   // ── ETPL Lisboa (Eletrónica & Segurança) ─────────────────────
-  { id:'s20', name:'Nuno Carvalho',    school:'ETPL Lisboa',   level:'AVANCADO',   rating:4.8, nServices:38, cats:['seguranca'],              location:'Loures',
-    reviews:[{author:'Carla S.',text:'Sistema de câmaras instalado sem erros.',rating:5,date:'2026-04-17'},{author:'Miguel A.',text:'Muito competente e organizado.',rating:5,date:'2026-04-03'}],
-    bio:'Especialista em sistemas de segurança e videovigilância.' },
-  { id:'s6',  name:'Sofia Costa',      school:'ETPL Lisboa',   level:'AVANCADO',   rating:4.6, nServices:21, cats:['jardinagem','pintura'],   location:'Cascais',
-    reviews:[{author:'Bruno N.',text:'Jardim ficou lindo!',rating:5,date:'2026-04-12'}],
-    bio:'Adoro jardinagem e faço trabalhos de pintura de qualidade.' },
-  { id:'s15', name:'Mariana Rocha',    school:'ETPL Lisboa',   level:'INTERMEDIO', rating:4.7, nServices:14, cats:['petsitting'],             location:'Almada',
-    reviews:[{author:'Tiago R.',text:'O meu cão adorou!',rating:5,date:'2026-04-19'},{author:'Sofia C.',text:'Muito responsável.',rating:5,date:'2026-04-03'}],
-    bio:'Amante dos animais. Passeios, alimentação e companhia garantidos.' },
-  { id:'s42', name:'Henrique Saraiva', school:'ETPL Lisboa',   level:'INTERMEDIO', rating:4.5, nServices:11, cats:['eletric'],                location:'Sintra',
-    reviews:[{author:'Olívia F.',text:'Instalou quadro elétrico novo.',rating:5,date:'2026-04-05'}],
-    bio:'Eletrónica e automação doméstica. Quadros elétricos, domótica e instalações.' },
-  { id:'s43', name:'Cláudia Mendes',   school:'ETPL Lisboa',   level:'BASICO',     rating:4.1, nServices:4,  cats:['seguranca'],              location:'Odivelas',
-    reviews:[{author:'Tomás C.',text:'Instalou campainha e intercom.',rating:4,date:'2026-03-12'}],
-    bio:'Curso de Sistemas de Segurança. Instalação de câmaras, alarmes e interfones.' },
+  { id:'s20', name:'Nuno Carvalho', school:'ETPL Lisboa', level:'AVANCADO', rating:4.8, nServices:38, acceptProb:0.55, cats:['seguranca'], location:'Loures',
+    bio:'Especialista em sistemas de segurança e videovigilância.',
+    reviews:[
+      {author:'Carla S.',text:'Sistema de câmaras instalado sem erros.',rating:5,date:'2026-04-17'},
+      {author:'Miguel A.',text:'Muito competente e organizado.',rating:5,date:'2026-04-03'},
+      {author:'Nazaré B.',text:'Alarme novo a funcionar na perfeição.',rating:5,date:'2026-03-21'},
+      {author:'Olavo M.',text:'Câmaras de vigilância perfeitas.',rating:5,date:'2026-03-08'},
+      {author:'Patrícia F.',text:'Instalação de sistema antifurto.',rating:4,date:'2026-02-23'},
+      {author:'Querubim S.',text:'Excelente profissional.',rating:5,date:'2026-02-09'},
+      {author:'Rufino B.',text:'Segurança total em casa.',rating:5,date:'2026-01-27'},
+      {author:'Salomé M.',text:'Muito satisfeita com o sistema.',rating:4,date:'2026-01-13'},
+      {author:'Tomé F.',text:'Câmaras interiores e exteriores.',rating:5,date:'2026-01-01'},
+      {author:'Úrsula B.',text:'Profissionalismo de topo.',rating:5,date:'2025-12-18'},
+      {author:'Victorino M.',text:'Voltaria a contratar.',rating:5,date:'2025-12-04'},
+      {author:'Wenceslau F.',text:'Sistema CCTV de qualidade.',rating:4,date:'2025-11-20'},
+      {author:'Ximena S.',text:'Muito eficiente e pontual.',rating:5,date:'2025-11-06'},
+      {author:'Yolanda B.',text:'Câmaras e intercom instalados.',rating:5,date:'2025-10-23'},
+      {author:'Zacarias M.',text:'Recomendo sem reservas.',rating:5,date:'2025-10-09'},
+    ] },
+  { id:'s6', name:'Sofia Costa', school:'ETPL Lisboa', level:'AVANCADO', rating:4.6, nServices:21, acceptProb:0.65, cats:['jardinagem','pintura'], location:'Cascais',
+    bio:'Adoro jardinagem e faço trabalhos de pintura de qualidade.',
+    reviews:[
+      {author:'Bruno N.',text:'Jardim ficou absolutamente lindo!',rating:5,date:'2026-04-12'},
+      {author:'Carmo M.',text:'Pintura do exterior ficou perfeita.',rating:5,date:'2026-03-28'},
+      {author:'Diogo F.',text:'Jardim mantido todo o mês.',rating:4,date:'2026-03-14'},
+      {author:'Estela S.',text:'Pintura interior muito cuidada.',rating:5,date:'2026-02-28'},
+      {author:'Firmino B.',text:'Jardim redesenhado com gosto.',rating:5,date:'2026-02-14'},
+      {author:'Goreti M.',text:'Muito criativa na jardinagem.',rating:4,date:'2026-01-31'},
+      {author:'Hermínio F.',text:'Paredes pintadas com perfeição.',rating:5,date:'2026-01-17'},
+      {author:'Isilda B.',text:'Excelente trabalho de jardinagem.',rating:4,date:'2026-01-03'},
+      {author:'Jacinto S.',text:'Jardim florido durante todo o ano.',rating:5,date:'2025-12-20'},
+      {author:'Kika M.',text:'Pintura e paisagismo perfeitos.',rating:5,date:'2025-12-06'},
+    ] },
+  { id:'s15', name:'Mariana Rocha', school:'ETPL Lisboa', level:'INTERMEDIO', rating:4.7, nServices:14, acceptProb:0.70, cats:['petsitting'], location:'Almada',
+    bio:'Amante dos animais. Passeios, alimentação e companhia garantidos.',
+    reviews:[
+      {author:'Tiago R.',text:'O meu cão adorou absolutamente!',rating:5,date:'2026-04-19'},
+      {author:'Sofia C.',text:'Muito responsável com os animais.',rating:5,date:'2026-04-03'},
+      {author:'Ulrico M.',text:'Cão voltou feliz e bem cuidado.',rating:5,date:'2026-03-20'},
+      {author:'Verónica F.',text:'Passeios diários como prometido.',rating:4,date:'2026-03-06'},
+      {author:'Wilson B.',text:'Gato bem tratado durante férias.',rating:5,date:'2026-02-21'},
+      {author:'Xana M.',text:'Muito carinhosa com o meu labrador.',rating:5,date:'2026-02-07'},
+      {author:'Yara S.',text:'Animais sempre bem alimentados.',rating:4,date:'2026-01-24'},
+      {author:'Zélia F.',text:'Recomendo para todos os pets.',rating:5,date:'2026-01-10'},
+    ] },
+  { id:'s42', name:'Henrique Saraiva', school:'ETPL Lisboa', level:'INTERMEDIO', rating:4.5, nServices:11, acceptProb:0.78, cats:['eletric'], location:'Sintra',
+    bio:'Eletrónica e automação doméstica. Quadros elétricos, domótica e instalações.',
+    reviews:[
+      {author:'Olívia F.',text:'Instalou quadro elétrico novo.',rating:5,date:'2026-04-05'},
+      {author:'Pedro T.',text:'Domótica configurada na perfeição.',rating:5,date:'2026-03-22'},
+      {author:'Quirina B.',text:'Instalação elétrica de qualidade.',rating:4,date:'2026-03-08'},
+      {author:'Renato M.',text:'Muito competente.',rating:4,date:'2026-02-23'},
+      {author:'Stéphanie F.',text:'Trabalho organizado e limpo.',rating:5,date:'2026-02-09'},
+      {author:'Tito S.',text:'Excelente eletricista.',rating:4,date:'2026-01-26'},
+    ] },
+  { id:'s43', name:'Cláudia Mendes', school:'ETPL Lisboa', level:'BASICO', rating:4.1, nServices:4, acceptProb:0.87, cats:['seguranca'], location:'Odivelas',
+    bio:'Curso de Sistemas de Segurança. Instalação de câmaras, alarmes e interfones.',
+    reviews:[
+      {author:'Tomás C.',text:'Instalou campainha e intercom.',rating:4,date:'2026-03-12'},
+      {author:'Ulca M.',text:'Câmara da porta instalada.',rating:4,date:'2026-02-20'},
+    ] },
 
   // ── ETP Coimbra (Artes & Acabamentos) ────────────────────────
-  { id:'s4',  name:'Inês Rodrigues',   school:'ETP Coimbra',   level:'AVANCADO',   rating:4.8, nServices:27, cats:['pintura','carpint'],      location:'Coimbra',
-    reviews:[{author:'Luís T.',text:'Trabalho impecável. Muito recomendo.',rating:5,date:'2026-04-20'},{author:'Sofia A.',text:'Super atenciosa e profissional.',rating:5,date:'2026-03-28'}],
-    bio:'Especializada em pintura decorativa e restauro de mobiliário.' },
-  { id:'s10', name:'Beatriz Lima',     school:'ETP Coimbra',   level:'INTERMEDIO', rating:4.4, nServices:9,  cats:['pintura','limpeza'],      location:'Figueira da Foz',
-    reviews:[{author:'Vasco M.',text:'Boa pintora, atenta ao detalhe.',rating:4,date:'2026-03-18'}],
-    bio:'Pintora criativa e dedicada. Faço também limpezas pós-obra.' },
-  { id:'s29', name:'Daniela Fonseca',  school:'ETP Coimbra',   level:'INTERMEDIO', rating:4.5, nServices:12, cats:['montagem','reparacao'],   location:'Lousã',
-    reviews:[{author:'Gonçalo P.',text:'Montou tudo rapidamente.',rating:5,date:'2026-04-07'}],
-    bio:'Montagem de mobiliário e pequenas reparações domésticas. Precisa e rápida.' },
-  { id:'s44', name:'Afonso Duarte',    school:'ETP Coimbra',   level:'BASICO',     rating:4.2, nServices:6,  cats:['carpint'],                location:'Coimbra',
-    reviews:[{author:'Cristina B.',text:'Fez uma prateleira resistente.',rating:4,date:'2026-03-22'}],
-    bio:'Curso de Artes do Mobiliário. Carpintaria básica e restauro de peças simples.' },
-  { id:'s45', name:'Margarida Reis',   school:'ETP Coimbra',   level:'INTERMEDIO', rating:4.6, nServices:15, cats:['pintura'],                location:'Cantanhede',
-    reviews:[{author:'Dinis F.',text:'Sala transformada! Cores perfeitas.',rating:5,date:'2026-04-11'},{author:'Elsa M.',text:'Muito caprichosa.',rating:4,date:'2026-03-27'}],
-    bio:'Pintura decorativa e acabamentos. Especialidade em stucco e efeitos especiais.' },
+  { id:'s4', name:'Inês Rodrigues', school:'ETP Coimbra', level:'AVANCADO', rating:4.8, nServices:27, acceptProb:0.60, cats:['pintura','carpint'], location:'Coimbra',
+    bio:'Especializada em pintura decorativa e restauro de mobiliário.',
+    reviews:[
+      {author:'Luís T.',text:'Trabalho impecável. Muito recomendo.',rating:5,date:'2026-04-20'},
+      {author:'Sofia A.',text:'Super atenciosa e muito profissional.',rating:5,date:'2026-03-28'},
+      {author:'Verónica M.',text:'Pintura decorativa de excelência.',rating:5,date:'2026-03-14'},
+      {author:'Wilson F.',text:'Móvel restaurado ficou como novo.',rating:5,date:'2026-02-29'},
+      {author:'Xabregas S.',text:'Stucco veneziano perfeito.',rating:5,date:'2026-02-14'},
+      {author:'Ynez B.',text:'Carpintaria e pintura combinadas.',rating:5,date:'2026-01-31'},
+      {author:'Zacário M.',text:'Restauro de madeira impecável.',rating:4,date:'2026-01-17'},
+      {author:'Adelaide F.',text:'Acabamentos de alto nível.',rating:5,date:'2026-01-04'},
+      {author:'Baltasar C.',text:'Mesa antiga restaurada na perfeição.',rating:5,date:'2025-12-21'},
+      {author:'Celestino M.',text:'Pintura interior sem falhas.',rating:5,date:'2025-12-07'},
+      {author:'Damiana F.',text:'Armário antigo como novo.',rating:5,date:'2025-11-23'},
+      {author:'Ezequiel B.',text:'Muito criativa nos acabamentos.',rating:4,date:'2025-11-09'},
+    ] },
+  { id:'s10', name:'Beatriz Lima', school:'ETP Coimbra', level:'INTERMEDIO', rating:4.4, nServices:9, acceptProb:0.78, cats:['pintura','limpeza'], location:'Figueira da Foz',
+    bio:'Pintora criativa e dedicada. Faço também limpezas pós-obra.',
+    reviews:[
+      {author:'Vasco M.',text:'Boa pintora, atenta ao detalhe.',rating:4,date:'2026-03-18'},
+      {author:'Wanda F.',text:'Limpeza pós-obra muito eficaz.',rating:4,date:'2026-03-03'},
+      {author:'Xiomara B.',text:'Resultado da pintura agradável.',rating:4,date:'2026-02-17'},
+      {author:'Yuri M.',text:'Boa profissional.',rating:5,date:'2026-02-03'},
+      {author:'Zilda S.',text:'Trabalho limpo e organizado.',rating:4,date:'2026-01-20'},
+      {author:'Abílio F.',text:'Pintou cozinha muito bem.',rating:4,date:'2026-01-07'},
+    ] },
+  { id:'s29', name:'Daniela Fonseca', school:'ETP Coimbra', level:'INTERMEDIO', rating:4.5, nServices:12, acceptProb:0.77, cats:['montagem','reparacao'], location:'Lousã',
+    bio:'Montagem de mobiliário e pequenas reparações domésticas. Precisa e rápida.',
+    reviews:[
+      {author:'Gonçalo P.',text:'Montou tudo rapidamente e sem erros.',rating:5,date:'2026-04-07'},
+      {author:'Hortense M.',text:'Reparação de porta muito bem feita.',rating:4,date:'2026-03-24'},
+      {author:'Ireneu F.',text:'Estantes e cama montadas.',rating:5,date:'2026-03-10'},
+      {author:'Josefina B.',text:'Rápida e organizada.',rating:4,date:'2026-02-25'},
+      {author:'Karim S.',text:'Móveis de cozinha montados.',rating:5,date:'2026-02-11'},
+      {author:'Leonel M.',text:'Reparação de janela perfeita.',rating:4,date:'2026-01-28'},
+      {author:'Maximina F.',text:'Trabalho de qualidade.',rating:5,date:'2026-01-14'},
+      {author:'Narcisa B.',text:'Muito eficiente.',rating:4,date:'2026-01-01'},
+    ] },
+  { id:'s44', name:'Afonso Duarte', school:'ETP Coimbra', level:'BASICO', rating:4.2, nServices:6, acceptProb:0.88, cats:['carpint'], location:'Coimbra',
+    bio:'Curso de Artes do Mobiliário. Carpintaria básica e restauro de peças simples.',
+    reviews:[
+      {author:'Cristina B.',text:'Fez uma prateleira resistente.',rating:4,date:'2026-03-22'},
+      {author:'Domitila M.',text:'Mesa reparada com cuidado.',rating:4,date:'2026-03-06'},
+      {author:'Erasmo F.',text:'Trabalho simples mas bem feito.',rating:4,date:'2026-02-18'},
+      {author:'Felicidade S.',text:'Boa disposição.',rating:5,date:'2026-02-02'},
+    ] },
+  { id:'s45', name:'Margarida Reis', school:'ETP Coimbra', level:'INTERMEDIO', rating:4.6, nServices:15, acceptProb:0.73, cats:['pintura'], location:'Cantanhede',
+    bio:'Pintura decorativa e acabamentos. Especialidade em stucco e efeitos especiais.',
+    reviews:[
+      {author:'Dinis F.',text:'Sala transformada! Cores perfeitas.',rating:5,date:'2026-04-11'},
+      {author:'Elsa M.',text:'Muito caprichosa nos acabamentos.',rating:4,date:'2026-03-27'},
+      {author:'Filomena T.',text:'Stucco veneziano incrível.',rating:5,date:'2026-03-13'},
+      {author:'Gaspar B.',text:'Quarto pintado com classe.',rating:5,date:'2026-02-27'},
+      {author:'Helena S.',text:'Efeito de parede fantástico.',rating:4,date:'2026-02-13'},
+      {author:'Ilídio M.',text:'Pintura do corredor perfeita.',rating:5,date:'2026-01-30'},
+      {author:'Júlia F.',text:'Muito contente com o resultado.',rating:4,date:'2026-01-16'},
+      {author:'Kevin S.',text:'Casa com nova cara.',rating:5,date:'2026-01-03'},
+      {author:'Lina B.',text:'Qualidade de trabalho excelente.',rating:5,date:'2025-12-20'},
+    ] },
 
   // ── EPCV Coimbra (Cuidados & Verde) ──────────────────────────
-  { id:'s13', name:'Leonor Faria',     school:'EPCV Coimbra',  level:'BASICO',     rating:4.3, nServices:8,  cats:['babysitting'],            location:'Condeixa-a-Nova',
-    reviews:[{author:'Maria J.',text:'Adorou os meus filhos!',rating:5,date:'2026-04-07'},{author:'Carlos B.',text:'Responsável e carinhosa.',rating:4,date:'2026-03-12'}],
-    bio:'Amo crianças e tenho formação em primeiros socorros pediátricos.' },
-  { id:'s19', name:'Francisca Pinto',  school:'EPCV Coimbra',  level:'INTERMEDIO', rating:4.5, nServices:13, cats:['limpeza','babysitting'],  location:'Cantanhede',
-    reviews:[{author:'Rui C.',text:'Casa impecável.',rating:5,date:'2026-04-06'}],
-    bio:'Zeladora experiente e cuidadora dedicada. Flexível em horários.' },
-  { id:'s24', name:'Ricardo Lopes',    school:'EPCV Coimbra',  level:'BASICO',     rating:4.0, nServices:3,  cats:['jardinagem'],             location:'Montemor-o-Velho',
-    reviews:[{author:'Maria T.',text:'Relva ficou perfeita.',rating:4,date:'2026-03-08'}],
-    bio:'Estudante de horticultura. Disponível para jardinagem.' },
-  { id:'s46', name:'Constança Melo',   school:'EPCV Coimbra',  level:'INTERMEDIO', rating:4.5, nServices:11, cats:['babysitting'],            location:'Coimbra',
-    reviews:[{author:'Álvaro N.',text:'As crianças adoraram, muito responsável.',rating:5,date:'2026-04-08'},{author:'Laura F.',text:'Sempre pontual e carinhosa.',rating:4,date:'2026-03-19'}],
-    bio:'Educação de Infância. Experiência com crianças de 0 a 10 anos.' },
-  { id:'s47', name:'Eduardo Bessa',    school:'EPCV Coimbra',  level:'BASICO',     rating:4.1, nServices:5,  cats:['petsitting'],             location:'Figueira da Foz',
-    reviews:[{author:'Miriam T.',text:'Cuidou bem do meu cão.',rating:4,date:'2026-03-01'}],
-    bio:'Veterinária preventiva. Passeios, alimentação e cuidados básicos de animais.' },
+  { id:'s13', name:'Leonor Faria', school:'EPCV Coimbra', level:'BASICO', rating:4.3, nServices:8, acceptProb:0.85, cats:['babysitting'], location:'Condeixa-a-Nova',
+    bio:'Amo crianças e tenho formação em primeiros socorros pediátricos.',
+    reviews:[
+      {author:'Maria J.',text:'Os meus filhos adoraram-na!',rating:5,date:'2026-04-07'},
+      {author:'Carlos B.',text:'Muito responsável e carinhosa.',rating:4,date:'2026-03-12'},
+      {author:'Natércia F.',text:'Crianças bem entretidas.',rating:5,date:'2026-02-26'},
+      {author:'Olinda M.',text:'Confiante e atenciosa.',rating:4,date:'2026-02-10'},
+      {author:'Pompeu S.',text:'Filhos chegaram felizes.',rating:4,date:'2026-01-25'},
+    ] },
+  { id:'s19', name:'Francisca Pinto', school:'EPCV Coimbra', level:'INTERMEDIO', rating:4.5, nServices:13, acceptProb:0.78, cats:['limpeza','babysitting'], location:'Cantanhede',
+    bio:'Zeladora experiente e cuidadora dedicada. Flexível em horários.',
+    reviews:[
+      {author:'Rui C.',text:'Casa impecável após a limpeza!',rating:5,date:'2026-04-06'},
+      {author:'Solange M.',text:'Crianças bem cuidadas.',rating:4,date:'2026-03-22'},
+      {author:'Toino F.',text:'Limpeza geral muito bem feita.',rating:5,date:'2026-03-07'},
+      {author:'Umbelina B.',text:'Muito flexível nos horários.',rating:4,date:'2026-02-21'},
+      {author:'Ventura M.',text:'Trabalha com cuidado.',rating:5,date:'2026-02-07'},
+      {author:'Wanda F.',text:'Babysitting de qualidade.',rating:4,date:'2026-01-23'},
+      {author:'Xiomara S.',text:'Casa sempre em ordem.',rating:5,date:'2026-01-09'},
+      {author:'Yasmin B.',text:'Pontual e eficiente.',rating:4,date:'2025-12-26'},
+    ] },
+  { id:'s24', name:'Ricardo Lopes', school:'EPCV Coimbra', level:'BASICO', rating:4.0, nServices:3, acceptProb:0.90, cats:['jardinagem'], location:'Montemor-o-Velho',
+    bio:'Estudante de horticultura. Disponível para jardinagem.',
+    reviews:[
+      {author:'Maria T.',text:'Relva ficou perfeita.',rating:4,date:'2026-03-08'},
+      {author:'Narciso F.',text:'Jardim arranjado.',rating:4,date:'2026-02-10'},
+    ] },
+  { id:'s46', name:'Constança Melo', school:'EPCV Coimbra', level:'INTERMEDIO', rating:4.5, nServices:11, acceptProb:0.79, cats:['babysitting'], location:'Coimbra',
+    bio:'Educação de Infância. Experiência com crianças de 0 a 10 anos.',
+    reviews:[
+      {author:'Álvaro N.',text:'As crianças adoraram, muito responsável.',rating:5,date:'2026-04-08'},
+      {author:'Laura F.',text:'Sempre pontual e muito carinhosa.',rating:4,date:'2026-03-19'},
+      {author:'Maurício B.',text:'Bebé bem tratado.',rating:5,date:'2026-03-05'},
+      {author:'Nélia M.',text:'Muito cuidadosa.',rating:5,date:'2026-02-19'},
+      {author:'Óscar F.',text:'Recomendo totalmente.',rating:4,date:'2026-02-04'},
+      {author:'Piedade S.',text:'Crianças felizes e entretidas.',rating:5,date:'2026-01-21'},
+      {author:'Quirino B.',text:'Babysitter de confiança.',rating:4,date:'2026-01-07'},
+    ] },
+  { id:'s47', name:'Eduardo Bessa', school:'EPCV Coimbra', level:'BASICO', rating:4.1, nServices:5, acceptProb:0.88, cats:['petsitting'], location:'Figueira da Foz',
+    bio:'Veterinária preventiva. Passeios, alimentação e cuidados básicos de animais.',
+    reviews:[
+      {author:'Miriam T.',text:'Cuidou muito bem do meu cão.',rating:4,date:'2026-03-01'},
+      {author:'Noel F.',text:'Gato bem alimentado.',rating:4,date:'2026-02-10'},
+      {author:'Octávio S.',text:'Passeios cumpridos.',rating:4,date:'2026-01-20'},
+    ] },
 ];
-
 const LEVEL_LBL   = { BASICO:'Básico', INTERMEDIO:'Intermédio', AVANCADO:'Avançado' };
 const URGENCY_LBL = { BAIXA:'Baixa', MEDIA:'Média', ALTA:'Alta', URGENTE:'Urgente' };
 const STATUS_LBL  = {
@@ -407,6 +748,9 @@ function showScreen(name) {
 }
 function goToAuth() { showScreen('auth'); }
 function enterApp() {
+  // Restore dark mode preference
+  const p = LS.get(KEY_PROFILE) || {};
+  document.body.classList.toggle('dark', !!p.darkMode);
   showScreen('app');
   switchTab('menu');
   renderActiveRequest();
@@ -445,6 +789,7 @@ function doRegister() {
   const pass  = document.getElementById('reg-password').value;
   const err   = document.getElementById('reg-error');
   if (!name || !email || !pass) { err.textContent = 'Preenche todos os campos.'; return; }
+  if (!EMAIL_RE.test(email)) { err.textContent = 'Email inválido. Usa o formato algo@dominio.com'; return; }
   if (pass.length < 6) { err.textContent = 'Password: mínimo 6 caracteres.'; return; }
   const users = LS.get(KEY_USERS) || [];
   if (users.find(u => u.email === email)) { err.textContent = 'Email já registado.'; return; }
@@ -1386,6 +1731,99 @@ function renderSettings() {
   document.getElementById('settings-name').textContent  = currentUser.name;
   document.getElementById('settings-email').textContent = currentUser.email;
   document.getElementById('settings-avatar').textContent= (currentUser.name||'U')[0].toUpperCase();
+
+  // Load saved profile extras
+  const p = LS.get(KEY_PROFILE) || {};
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('set-name',        currentUser.name);
+  setVal('set-phone',       p.phone);
+  setVal('set-location',    p.location);
+  setVal('set-addr-street', p.addrStreet);
+  setVal('set-addr-zip',    p.addrZip);
+  setVal('set-addr-city',   p.addrCity);
+  setVal('set-email',       '');
+  setVal('set-pass-current','');
+  setVal('set-pass-new',    '');
+  setVal('set-pass-confirm','');
+
+  // Restore dark mode toggle
+  const dark = p.darkMode || false;
+  const toggle = document.getElementById('dark-toggle');
+  if (toggle) toggle.checked = dark;
+  document.body.classList.toggle('dark', dark);
+}
+
+function saveProfileSettings() {
+  const name     = document.getElementById('set-name')?.value.trim();
+  const phone    = document.getElementById('set-phone')?.value.trim();
+  const location = document.getElementById('set-location')?.value.trim();
+  const addrStreet= document.getElementById('set-addr-street')?.value.trim();
+  const addrZip  = document.getElementById('set-addr-zip')?.value.trim();
+  const addrCity = document.getElementById('set-addr-city')?.value.trim();
+  const msgEl    = document.getElementById('settings-save-msg');
+
+  if (name) {
+    currentUser.name = name;
+    LS.set(KEY_SESSION, currentUser);
+    // Update in users list too
+    const users = LS.get(KEY_USERS) || [];
+    const u = users.find(x => x.id === currentUser.id);
+    if (u) { u.name = name; LS.set(KEY_USERS, users); }
+  }
+
+  const existing = LS.get(KEY_PROFILE) || {};
+  LS.set(KEY_PROFILE, { ...existing, phone, location, addrStreet, addrZip, addrCity,
+    darkMode: document.getElementById('dark-toggle')?.checked || false });
+
+  document.getElementById('settings-name').textContent = currentUser.name;
+  document.getElementById('settings-avatar').textContent = (currentUser.name||'U')[0].toUpperCase();
+  if (msgEl) { msgEl.textContent = '✓ Alterações guardadas!'; setTimeout(() => msgEl.textContent = '', 3000); }
+}
+
+function saveAccountSettings() {
+  const newEmail      = document.getElementById('set-email')?.value.trim();
+  const passCurrent   = document.getElementById('set-pass-current')?.value;
+  const passNew       = document.getElementById('set-pass-new')?.value;
+  const passConfirm   = document.getElementById('set-pass-confirm')?.value;
+  const msgEl         = document.getElementById('account-save-msg');
+  if (msgEl) msgEl.textContent = '';
+
+  const users = LS.get(KEY_USERS) || [];
+  const u = users.find(x => x.id === currentUser.id);
+
+  let changed = false;
+
+  if (newEmail) {
+    if (!EMAIL_RE.test(newEmail)) { if (msgEl) msgEl.textContent = '✗ Email inválido.'; return; }
+    if (users.find(x => x.email === newEmail && x.id !== currentUser.id)) {
+      if (msgEl) msgEl.textContent = '✗ Email já em uso por outra conta.'; return;
+    }
+    if (u) u.email = newEmail;
+    currentUser.email = newEmail;
+    LS.set(KEY_SESSION, currentUser);
+    changed = true;
+  }
+
+  if (passCurrent || passNew || passConfirm) {
+    if (!passCurrent) { if (msgEl) msgEl.textContent = '✗ Insere a password atual.'; return; }
+    if (!u || u.password !== passCurrent) { if (msgEl) msgEl.textContent = '✗ Password atual incorreta.'; return; }
+    if (passNew.length < 6) { if (msgEl) msgEl.textContent = '✗ Nova password: mínimo 6 caracteres.'; return; }
+    if (passNew !== passConfirm) { if (msgEl) msgEl.textContent = '✗ As passwords não coincidem.'; return; }
+    if (u) u.password = passNew;
+    changed = true;
+  }
+
+  if (changed) {
+    LS.set(KEY_USERS, users);
+    document.getElementById('settings-email').textContent = currentUser.email;
+    document.getElementById('set-email').value = '';
+    document.getElementById('set-pass-current').value = '';
+    document.getElementById('set-pass-new').value = '';
+    document.getElementById('set-pass-confirm').value = '';
+    if (msgEl) { msgEl.textContent = '✓ Conta atualizada!'; setTimeout(() => msgEl.textContent = '', 3000); }
+  } else {
+    if (msgEl) { msgEl.textContent = 'Nada para atualizar.'; setTimeout(() => msgEl.textContent = '', 2000); }
+  }
 }
 
 // ============================================================
@@ -1475,7 +1913,11 @@ function formatDate(iso) {
 }
 function formatTimeShort(ts) { return new Date(ts).toLocaleTimeString('pt-PT',{hour:'2-digit',minute:'2-digit'}); }
 function escapeHtml(str) { return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-function toggleDark(cb) { document.body.classList.toggle('dark',cb.checked); }
+function toggleDark(cb) {
+  document.body.classList.toggle('dark', cb.checked);
+  const p = LS.get(KEY_PROFILE) || {};
+  LS.set(KEY_PROFILE, { ...p, darkMode: cb.checked });
+}
 function showToast(msg,dur=3000) {
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.remove('hidden');

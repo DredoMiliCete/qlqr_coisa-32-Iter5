@@ -73,7 +73,12 @@
 <div id="screen-app" class="screen">
   <!-- Pedido -->
   <div id="page-pedido" class="page">
-    <div class="page-header"><h1 class="page-title">Pedido atual</h1></div>
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+      <h1 class="page-title">Pedido atual</h1>
+      <button class="btn-icon-round" onclick="doLogout()" title="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
     <div id="active-request-area" class="page-scroll-body"></div>
   </div>
   <!-- Menu -->
@@ -106,14 +111,26 @@
   </div>
   <!-- Historico -->
   <div id="page-historico" class="page">
-    <div class="page-header"><h1 class="page-title">Historico</h1></div>
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+      <h1 class="page-title">Histórico</h1>
+      <button class="btn-icon-round" onclick="doLogout()" title="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
     <div class="page-scroll-body" id="historico-list"></div>
     <div id="historico-empty" class="empty-state hidden"><p>Ainda nao tens pedidos.</p></div>
   </div>
   <!-- Definicoes -->
   <div id="page-def" class="page">
-    <div class="page-header"><h1 class="page-title">Definicoes</h1></div>
+    <div class="page-header" style="display:flex;align-items:center;justify-content:space-between">
+      <h1 class="page-title">Definições</h1>
+      <button class="btn-icon-round" onclick="doLogout()" title="Sair">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
     <div class="page-scroll-body">
+
+      <!-- Profile card -->
       <div class="settings-profile-card">
         <div class="settings-avatar" id="settings-avatar">M</div>
         <div>
@@ -121,12 +138,78 @@
           <div class="settings-email" id="settings-email">-</div>
         </div>
       </div>
+
+      <!-- Personal info -->
+      <div class="settings-section-title">Informação pessoal</div>
       <div class="settings-group">
-        <div class="settings-row"><span>Notificacoes</span><label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
+        <div class="settings-input-row">
+          <label>Nome completo</label>
+          <input type="text" id="set-name" placeholder="O teu nome"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Número de telemóvel</label>
+          <input type="tel" id="set-phone" placeholder="+351 9XX XXX XXX"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Localização preferida</label>
+          <input type="text" id="set-location" placeholder="Ex: Aveiro, Rua das Flores"/>
+        </div>
+      </div>
+
+      <!-- Billing -->
+      <div class="settings-section-title">Endereço de faturação</div>
+      <div class="settings-group">
+        <div class="settings-input-row">
+          <label>Morada</label>
+          <input type="text" id="set-addr-street" placeholder="Rua, número, andar"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Código postal</label>
+          <input type="text" id="set-addr-zip" placeholder="0000-000"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Cidade</label>
+          <input type="text" id="set-addr-city" placeholder="Aveiro"/>
+        </div>
+      </div>
+      <button class="settings-save-btn" onclick="saveProfileSettings()">Guardar alterações</button>
+      <div class="settings-save-msg" id="settings-save-msg"></div>
+
+      <!-- Account -->
+      <div class="settings-section-title">Conta</div>
+      <div class="settings-group">
+        <div class="settings-input-row">
+          <label>Novo email</label>
+          <input type="email" id="set-email" placeholder="novo@email.com"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Password atual</label>
+          <input type="password" id="set-pass-current" placeholder="••••••••"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Nova password</label>
+          <input type="password" id="set-pass-new" placeholder="mínimo 6 caracteres"/>
+        </div>
+        <div class="settings-input-row">
+          <label>Confirmar nova password</label>
+          <input type="password" id="set-pass-confirm" placeholder="repete a nova password"/>
+        </div>
+      </div>
+      <button class="settings-save-btn" onclick="saveAccountSettings()">Atualizar conta</button>
+      <div class="settings-save-msg" id="account-save-msg"></div>
+
+      <!-- App preferences -->
+      <div class="settings-section-title">Preferências</div>
+      <div class="settings-group">
+        <div class="settings-row"><span>Notificações</span><label class="toggle"><input type="checkbox" checked/><span class="toggle-slider"></span></label></div>
         <div class="settings-row"><span>Modo escuro</span><label class="toggle"><input type="checkbox" id="dark-toggle" onchange="toggleDark(this)"/><span class="toggle-slider"></span></label></div>
       </div>
+
+      <!-- Danger zone -->
+      <div class="settings-section-title">Zona de perigo</div>
       <button class="btn-danger-full" onclick="clearAllData()">Limpar dados locais</button>
-      <button class="btn-logout-full" onclick="doLogout()">Terminar sessao</button>
+      <button class="btn-logout-full" onclick="doLogout()">Terminar sessão</button>
+
     </div>
   </div>
   <!-- Tab Bar -->
