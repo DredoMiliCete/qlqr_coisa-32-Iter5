@@ -1194,31 +1194,31 @@ function runAutoLog(catId, level, urg, loc, cb) {
   const locLines = loc
     ? clientCity
       ? [
-          { t:2500, cls:'log-info', msg:`▶ GET /api/v1/maps/distance — verificar proximidade` },
+          { t:2500, cls:'log-info', msg:`📍 A verificar localização…` },
           { t:2800, cls:'log-ok',   msg:`✓ Localização reconhecida: ${clientCity}` },
-          { t:3000, cls:'log-info', msg:`  A calcular distâncias (Haversine)…` },
-          { t:3200, cls:'log-ok',   msg:`✓ Raio máximo: ${AUTO_MAX_KM} km — ${eligible.length} aluno(s) elegíve${eligible.length !== 1 ? 'is' : 'l'}` },
+          { t:3000, cls:'log-info', msg:`  A calcular distâncias…` },
+          { t:3200, cls:'log-ok',   msg:`✓ Raio máximo: ${AUTO_MAX_KM} km — ${eligible.length} profissional(is) encontrado(s)` },
         ]
       : [
-          { t:2500, cls:'log-warn', msg:`⚠ Localização "${loc}" não reconhecida — sem filtro geográfico` },
-          { t:2800, cls:'log-info', msg:`  Todos os alunos da categoria são elegíveis` },
+          { t:2500, cls:'log-warn', msg:`⚠ Localização "${loc}" não reconhecida — sem filtro de distância` },
+          { t:2800, cls:'log-info', msg:`  Todos os profissionais da categoria são elegíveis` },
         ]
     : [
-        { t:2500, cls:'log-warn', msg:`⚠ Sem localização — sem filtro geográfico` },
-        { t:2800, cls:'log-info', msg:`  Todos os alunos da categoria são elegíveis` },
+        { t:2500, cls:'log-warn', msg:`⚠ Sem localização indicada — sem filtro de distância` },
+        { t:2800, cls:'log-info', msg:`  Todos os profissionais da categoria são elegíveis` },
       ];
 
   const lines = [
-    { t:300,  cls:'log-info', msg:`▶ POST /api/v1/jobs — criar pedido (${catName})` },
-    { t:700,  cls:'log-ok',   msg:`✓ Pedido criado [${pendingReqAuto?.id.slice(-6)||'???'}]` },
-    { t:1100, cls:'log-info', msg:`▶ GET /api/v1/students/profile?cat=${catId}&level=${level}` },
-    { t:1500, cls:'log-info', msg:`  Motor de atribuição a avaliar candidatos…` },
-    { t:1800, cls:'log-ok',   msg:`✓ Critério categoria: ${catName}` },
-    { t:2000, cls:'log-ok',   msg:`✓ Critério nível: ${LEVEL_LBL[level]}` },
-    { t:2200, cls:'log-ok',   msg:`✓ Critério urgência: ${URGENCY_LBL[urg]}` },
+    { t:300,  cls:'log-info', msg:`🔍 A criar pedido para ${catName}…` },
+    { t:700,  cls:'log-ok',   msg:`✓ Pedido registado com sucesso` },
+    { t:1100, cls:'log-info', msg:`🔎 A pesquisar profissionais disponíveis…` },
+    { t:1500, cls:'log-info', msg:`  A avaliar candidatos…` },
+    { t:1800, cls:'log-ok',   msg:`✓ Categoria: ${catName}` },
+    { t:2000, cls:'log-ok',   msg:`✓ Nível: ${LEVEL_LBL[level]}` },
+    { t:2200, cls:'log-ok',   msg:`✓ Urgência: ${URGENCY_LBL[urg]}` },
     ...locLines,
-    { t:3500, cls:'log-info', msg:`▶ POST /api/v1/notifications/job — notificar alunos` },
-    { t:3900, cls:'log-ok',   msg:`✓ Propostas enviadas — aguardar respostas` },
+    { t:3500, cls:'log-info', msg:`📨 A notificar profissionais…` },
+    { t:3900, cls:'log-ok',   msg:`✓ Propostas enviadas — a aguardar respostas` },
   ];
 
   lines.forEach(({ t, cls, msg }) => setTimeout(() => {
@@ -1872,6 +1872,9 @@ function saveProfileSettings() {
   document.getElementById('settings-name').textContent = currentUser.name;
   document.getElementById('settings-avatar').textContent = (currentUser.name||'U')[0].toUpperCase();
   if (msgEl) { msgEl.textContent = '✓ Alterações guardadas!'; setTimeout(() => msgEl.textContent = '', 3000); }
+  // Refresh public profile page immediately if the user is on that tab
+  const defPage = document.getElementById('page-def');
+  if (defPage && defPage.classList.contains('active')) renderPublicProfile();
 }
 
 function saveAccountSettings() {
